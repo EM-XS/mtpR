@@ -25,121 +25,73 @@ design_plate <- function() {
   shiny::shinyApp(ui, server)
 }
 
+# Plate types the designer offers, largest first.
+.plate_designer_choices <- c("384", "96", "48", "24", "12")
+
 #' Plate designer UI module
 #'
 #' @param id Namespace id for the module.
-#' @param label Label for the setup section.
 #' @return A Shiny UI definition.
 #' @noRd
-plate_designer_ui <- function(id, label = "Setup") {
+plate_designer_ui <- function(id) {
   ns <- shiny::NS(id)
 
-  shiny::tagList(
-    shiny::fluidRow(
-      shiny::column(
-        3,
-        shiny::numericInput(
-          inputId = ns("rxnCount"),
-          label = "Number of reactions",
-          value = 1,
-          step = 1,
-          min = 1
-        )
+  shiny::sidebarLayout(
+    shiny::sidebarPanel(
+      width = 4,
+      shiny::numericInput(
+        ns("rxnCount"), "Number of reactions",
+        value = 8, min = 1, step = 1
       ),
-      shiny::column(
-        3,
-        shiny::numericInput(
-          inputId = ns("platereplicates"),
-          label = "Number of plate replicates",
-          value = 1,
-          step = 1,
-          min = 1
-        )
+      shiny::numericInput(
+        ns("replicatecount"), "Replicates per reaction",
+        value = 3, min = 1, step = 1
       ),
-      shiny::column(
-        3,
-        shiny::numericInput(
-          inputId = ns("replicatecount"),
-          label = "Number of Replicates",
-          value = 3,
-          min = 1
-        )
-      )
+      shiny::numericInput(
+        ns("platereplicates"), "Number of plate replicates",
+        value = 1, min = 1, step = 1
+      ),
+      shiny::tags$hr(),
+      shiny::selectInput(
+        ns("destplate"), "Destination plate type",
+        choices = .plate_designer_choices
+      ),
+      shiny::selectInput(
+        ns("fillwise"), "Fill by rows or columns?",
+        choices = c(Rows = "row", Columns = "col")
+      ),
+      shiny::selectInput(
+        ns("deststartwell"), "Starting well",
+        choices = NULL
+      ),
+      shiny::helpText(
+        "Starting-well options follow the selected plate type and fill direction."
+      ),
+      shiny::tags$hr(),
+      shiny::selectInput(
+        ns("replicatestyle"), "Group by",
+        choices = c(`Reaction, then replicates` = "Reaction",
+                    `Replicate, then reactions` = "Replicate")
+      ),
+      shiny::numericInput(
+        ns("interwell"), "Spacing between groups (wells)",
+        value = 1, min = 1, step = 1
+      ),
+      shiny::numericInput(
+        ns("intrawell"), "Spacing within a group (wells)",
+        value = 1, min = 1, step = 1
+      ),
+      shiny::tags$hr(),
+      shiny::actionButton(ns("createPlateMap"), "Create plate map",
+                          class = "btn-primary"),
+      shiny::downloadButton(ns("downloadCsv"), "Download CSV")
     ),
-    shiny::br(),
-    shiny::fluidRow(
-      shiny::column(
-        3,
-        shiny::selectInput(
-          inputId = ns("destplate"),
-          label = "Destination Plate Type",
-          choices = c("384", "96", "48", "24", "12")
-        )
-      ),
-      shiny::column(
-        3,
-        shiny::selectInput(
-          inputId = ns("deststartwell"),
-          label = "Starting Well",
-          # TODO: make these choices react to `destplate` rather than
-          # always listing 384-well positions.
-          choices = convert_well(
-            input = 1:384,
-            direction = "to_well",
-            wise = "col",
-            plate = 384
-          )
-        )
-      ),
-      shiny::column(
-        3,
-        shiny::selectInput(
-          inputId = ns("fillwise"),
-          label = "Work by Rows or Columns?",
-          choices = c(Rows = "row", Columns = "col")
-        )
-      )
-    ),
-    shiny::br(),
-    shiny::fluidRow(
-      shiny::column(
-        3,
-        shiny::selectInput(
-          inputId = ns("replicatestyle"),
-          label = "Prioritize Reactions or Replicates",
-          choices = c("Reaction", "Replicate")
-        )
-      ),
-      shiny::column(
-        3,
-        shiny::numericInput(
-          inputId = ns("interwell"),
-          label = "Spacing across Wells",
-          value = 1,
-          min = 1,
-          step = 1
-        )
-      ),
-      shiny::column(
-        3,
-        shiny::numericInput(
-          inputId = ns("intrawell"),
-          label = "Spacing between Wells",
-          value = 1,
-          min = 1,
-          step = 1
-        )
-      )
-    ),
-    shiny::fluidRow(
-      shiny::column(
-        3,
-        shiny::actionButton(ns("createPlateMap"), label = "Create Plate Map")
-      )
-    ),
-    shiny::br(),
-    shiny::plotOutput(outputId = ns("PlatePlot")),
-    DT::dataTableOutput(outputId = ns("PlateMap"))
+    shiny::mainPanel(
+      width = 8,
+      shiny::plotOutput(ns("PlatePlot"), height = "500px"),
+      shiny::tags$hr(),
+      DT::dataTableOutput(ns("PlateMap"))
+    )
   )
 }
 
@@ -153,43 +105,68 @@ plate_designer_server <- function(id) {
     id,
     function(input, output, session) {
 
-      myReactives <- shiny::reactiveValues(Reactions.Dest = NULL)
+      # Keep the starting-well choices in step with the chosen plate type and
+      # fill direction, preserving the current pick when it is still valid.
+      shiny::observeEvent(
+        list(input$destplate, input$fillwise),
+        {
+          shiny::req(input$destplate, input$fillwise)
+          choices <- start_well_choices(input$destplate, input$fillwise)
+          selected <- if (isTRUE(input$deststartwell %in% choices)) {
+            input$deststartwell
+          } else {
+            choices[1]
+          }
+          shiny::updateSelectInput(session, "deststartwell",
+                                   choices = choices, selected = selected)
+        },
+        ignoreInit = FALSE
+      )
 
-      shiny::observeEvent(input$createPlateMap, {
-        shiny::req(input$rxnCount, input$deststartwell, input$destplate)
+      plate_map <- shiny::eventReactive(input$createPlateMap, {
+        shiny::req(input$rxnCount, input$deststartwell, input$destplate,
+                   input$replicatecount, input$platereplicates)
 
         dest_plate <- as.numeric(input$destplate)
 
-        myReactives$Reactions.Dest <- data.frame(reaction_count = seq_len(input$rxnCount)) |>
-          replicate_reactions(
-            reaction_col_name = "reaction_count",
-            num_replicates = input$replicatecount,
-            priority = input$replicatestyle,
-            inter_spacing = input$interwell,
-            intra_spacing = input$intrawell,
-            start_position = convert_well(
-              input = input$deststartwell,
-              direction = "to_num",
-              wise = input$fillwise,
-              plate = dest_plate
-            )
-          ) |>
-          add_plates(well_index_column = "position", plate_size = dest_plate) |>
-          dplyr::mutate(
-            Well.Position = convert_well(
-              Well.Index,
-              direction = "to_well",
-              wise = input$fillwise,
-              plate = dest_plate
-            )
-          ) |>
-          add_plate_replicates(plate_replicate_number_total = input$platereplicates) |>
-          dplyr::mutate(`Plate Name` = stringr::str_glue("Plate_{Plate.Index}_{PlateReplicate.Number}"))
+        result <- tryCatch(
+          data.frame(reaction_count = seq_len(input$rxnCount)) |>
+            replicate_reactions(
+              reaction_col_name = "reaction_count",
+              num_replicates = input$replicatecount,
+              priority = input$replicatestyle,
+              inter_spacing = input$interwell,
+              intra_spacing = input$intrawell,
+              start_position = convert_well(
+                input$deststartwell, "to_num",
+                wise = input$fillwise, plate = dest_plate
+              )
+            ) |>
+            add_plates(well_index_column = "position", plate_size = dest_plate) |>
+            dplyr::mutate(
+              Well.Position = convert_well(
+                Well.Index, "to_well",
+                wise = input$fillwise, plate = dest_plate
+              )
+            ) |>
+            add_plate_replicates(plate_replicate_number_total = input$platereplicates) |>
+            dplyr::mutate(
+              `Plate Name` = as.character(
+                stringr::str_glue("Plate_{Plate.Index}_{PlateReplicate.Number}")
+              )
+            ),
+          error = function(e) e
+        )
+
+        if (inherits(result, "error")) {
+          shiny::validate(paste0("Could not build the plate map: ",
+                                 conditionMessage(result), "."))
+        }
+        result
       })
 
       output$PlatePlot <- shiny::renderPlot({
-        shiny::req(myReactives$Reactions.Dest)
-        myReactives$Reactions.Dest |>
+        plate_map() |>
           plot_plate(
             fill = "reaction_count",
             well_id = "Well.Position",
@@ -197,22 +174,31 @@ plate_designer_server <- function(id) {
             facet_cols = "PlateReplicate.Number",
             plate = as.numeric(input$destplate)
           ) +
-          ggplot2::labs(fill = "Reaction Number") +
+          ggplot2::labs(fill = "Reaction") +
           ggplot2::theme(legend.position = "bottom")
       })
 
       output$PlateMap <- DT::renderDataTable({
-        shiny::req(myReactives$Reactions.Dest)
-        myReactives$Reactions.Dest |>
-          DT::datatable(
-            extensions = "Buttons",
-            options = list(
-              dom = "Brtip",
-              buttons = c("copy", "csv", "excel"),
-              pageLength = -1
-            )
+        DT::datatable(
+          plate_map(),
+          rownames = FALSE,
+          extensions = "Buttons",
+          options = list(
+            dom = "Brtip",
+            buttons = c("copy", "csv", "excel"),
+            pageLength = -1
           )
+        )
       })
+
+      output$downloadCsv <- shiny::downloadHandler(
+        filename = function() {
+          paste0("plate_map_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".csv")
+        },
+        content = function(file) {
+          utils::write.csv(plate_map(), file, row.names = FALSE)
+        }
+      )
     }
   )
 }
