@@ -1,0 +1,28 @@
+Package: mtpR
+Type: Package
+Title: Microtiter Plate Layout and Data Tools
+Version: 0.1.0
+Authors@R:
+    person("Emily", email = "ejpmohr@gmail.com", role = c("aut", "cre"))
+Description: A small toolkit for designing and reading microtiter plate
+    layouts. It converts between well labels and numeric indices, assigns
+    reactions and replicates to well positions across one or more plates
+    with configurable spacing, draws 'ggplot2' plate maps, and reshapes
+    plate-shaped data into tidy long format. An experimental 'shiny' app
+    provides a graphical front-end.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Imports:
+    dplyr,
+    DT,
+    ggplot2,
+    rlang,
+    shiny,
+    stringr,
+    tidyr
+Suggests:
+    testthat (>= 3.0.0)
+RoxygenNote: 7.3.2
+Config/testthat/edition: 3
+URL: https://github.com/ejpmohr/mtpR
+BugReports: https://github.com/ejpmohr/mtpR/issues
