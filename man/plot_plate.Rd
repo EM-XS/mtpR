@@ -15,7 +15,16 @@ plot_plate(
   shape = 22,
   na_fill = "white",
   na_size_ratio = 0.95,
-  na_alpha = 0.1
+  na_alpha = 0.1,
+  style = c("tiles", "points"),
+  label = NULL,
+  label_size = NULL,
+  legend = "auto",
+  scale = c("auto", "discrete", "continuous"),
+  highlight = NULL,
+  empty_fill = "grey93",
+  empty_colour = "grey80",
+  interactive = FALSE
 )
 }
 \arguments{
@@ -31,19 +40,48 @@ plot_plate(
 
 \item{plate}{The size of the plate}
 
-\item{size}{The size of the plotted data on the plate}
+\item{size}{The size of the plotted data on the plate (`style = "points"` only)}
 
-\item{shape}{The shape of each plotted data point on the plate}
+\item{shape}{The shape of each plotted data point on the plate (`style = "points"` only)}
 
-\item{na_fill}{Fill color for the plate}
+\item{na_fill}{Fill color for the plate (`style = "points"` only)}
 
-\item{na_size_ratio}{Background ratio}
+\item{na_size_ratio}{Background ratio (`style = "points"` only)}
 
-\item{na_alpha}{Background transparency}
+\item{na_alpha}{Background transparency (`style = "points"` only)}
+
+\item{style}{`"tiles"` (default) or `"points"`, the original fixed-size point look.}
+
+\item{label}{Optional name of a column to print in each well.}
+
+\item{label_size}{Text size for `label`. The default depends on the plate size.}
+
+\item{legend}{`"auto"` (default) shows a legend unless there are more than 12
+keys; `TRUE` and `FALSE` force it on or off. Ignored for `style = "points"`,
+which never had one.}
+
+\item{scale}{`"auto"` (default) fills numeric columns on a continuous
+sequential scale and everything else with discrete colours; use
+`"discrete"` to treat numbers as categories.}
+
+\item{highlight}{Optional vector of wells (e.g. `c("A01", "B07")`) to outline.}
+
+\item{empty_fill, empty_colour}{Fill and outline of wells without data.}
+
+\item{interactive}{If `TRUE`, return a 'ggiraph' object where each well has
+`data_id` set to its well label and a tooltip. Needs the ggiraph package.}
 }
 \value{
-An image object
+A ggplot object, or a girafe object when `interactive = TRUE`.
 }
 \description{
-Plot Plates
+Draws a plate map. By default every well is a tile that fills the panel,
+with row letters and column numbers on the margins; wells with no data are
+drawn faint so the outline of the plate is always visible.
+}
+\examples{
+d <- data.frame(well = convert_well(1:36, "to_well", plate = 96),
+                grp = rep(c("x", "y", "z"), 12), n = 1:36)
+plot_plate(d, fill = "grp", well_id = "well", plate = 96, label = "n")
+plot_plate(d, fill = "n", well_id = "well", plate = 96, highlight = c("A01", "A02"))
 }
