@@ -26,15 +26,32 @@
 #'   `"discrete"` to treat numbers as categories.
 #' @param highlight Optional vector of wells (e.g. `c("A01", "B07")`) to outline.
 #' @param empty_fill,empty_colour Fill and outline of wells without data.
-#' @param interactive If `TRUE`, return a 'ggiraph' object where each well has
-#'   `data_id` set to its well label and a tooltip. Needs the ggiraph package.
+#' @param interactive `FALSE` (default) returns a plain ggplot. `TRUE` returns a
+#'   'ggiraph' girafe object where each well has `data_id` set to its well label
+#'   and a tooltip. `"ggplot"` returns the interactive ggplot before it is
+#'   wrapped by `ggiraph::girafe()`, so you can add layers, change the tooltip
+#'   or set your own girafe options. Both interactive modes need the ggiraph
+#'   package.
+#' @param tooltip Optional name of a column whose values are used as the tooltip
+#'   text when interactive (default: the well and the `fill` value). Ignored
+#'   when not interactive.
 #'
-#' @return A ggplot object, or a girafe object when `interactive = TRUE`.
+#' @return A ggplot object, or a girafe object when `interactive = TRUE`. With
+#'   `interactive = "ggplot"` the ggplot has interactive layers (the well tiles
+#'   use `ggiraph::geom_tile_interactive()`) and has not been through `girafe()`.
 #' @examples
 #' d <- data.frame(well = convert_well(1:36, "to_well", plate = 96),
 #'                 grp = rep(c("x", "y", "z"), 12), n = 1:36)
 #' plot_plate(d, fill = "grp", well_id = "well", plate = 96, label = "n")
 #' plot_plate(d, fill = "n", well_id = "well", plate = 96, highlight = c("A01", "A02"))
+#'
+#' \dontrun{
+#' # Custom tooltip, and the interactive ggplot before girafe() wraps it
+#' d$note <- paste("well", d$well, "holds", d$grp)
+#' plot_plate(d, "grp", "well", plate = 96, interactive = TRUE, tooltip = "note")
+#' g <- plot_plate(d, "grp", "well", plate = 96, interactive = "ggplot", tooltip = "note")
+#' ggiraph::girafe(ggobj = g)
+#' }
 #' @export
 
 
@@ -57,7 +74,8 @@ plot_plate <- function(data,
                             highlight = NULL,
                             empty_fill = "grey93",
                             empty_colour = "grey80",
-                            interactive = FALSE) {
+                            interactive = FALSE,
+                            tooltip = NULL) {
 
   style <- match.arg(style)
   scale <- match.arg(scale)
@@ -75,7 +93,18 @@ plot_plate <- function(data,
   if (!(identical(legend, "auto") || isTRUE(legend) || identical(legend, FALSE))) {
     stop("`legend` must be \"auto\", TRUE or FALSE.", call. = FALSE)
   }
-  if (isTRUE(interactive) && !requireNamespace("ggiraph", quietly = TRUE)) {
+  if (!(isTRUE(interactive) || identical(interactive, FALSE) ||
+        identical(interactive, "ggplot"))) {
+    stop("`interactive` must be FALSE, TRUE or \"ggplot\".", call. = FALSE)
+  }
+  if (!is.null(tooltip) && !(is.character(tooltip) && length(tooltip) == 1 &&
+                             tooltip %in% names(data))) {
+    stop("`tooltip` column '", paste(tooltip, collapse = ", "),
+         "' not found in `data`.", call. = FALSE)
+  }
+  as_ggplot <- identical(interactive, "ggplot")
+  interactive <- isTRUE(interactive) || as_ggplot
+  if (interactive && !requireNamespace("ggiraph", quietly = TRUE)) {
     stop("`interactive = TRUE` needs the 'ggiraph' package. ",
          "Install it with install.packages(\"ggiraph\").", call. = FALSE)
   }
@@ -94,7 +123,7 @@ plot_plate <- function(data,
   } else {
     p <- plot_plate_tiles(plotting_data, plate_info, xlim, ylim, fill, continuous,
                           label, label_size, legend, highlight,
-                          empty_fill, empty_colour, interactive, plate)
+                          empty_fill, empty_colour, interactive, plate, tooltip)
   }
 
   # Optional faceting
@@ -108,7 +137,7 @@ plot_plate <- function(data,
     p <- p + ggplot2::facet_grid(cols = ggplot2::vars(.data[[facet_cols]]))
   }
 
-  if (isTRUE(interactive)) {
+  if (interactive && !as_ggplot) {
     return(ggiraph::girafe(ggobj = p))
   }
   return(p)
@@ -131,20 +160,20 @@ plot_plate_points <- function(plotting_data, plate_info, xlim, ylim,
 
 plot_plate_tiles <- function(plotting_data, plate_info, xlim, ylim, fill_name, continuous,
                              label, label_size, legend, highlight,
-                             empty_fill, empty_colour, interactive, plate) {
+                             empty_fill, empty_colour, interactive, plate,
+                             tooltip = NULL) {
   tile_geom <- if (isTRUE(interactive)) ggiraph::geom_tile_interactive else ggplot2::geom_tile
-
-  grid <- expand.grid(Column = seq_len(plate_info$colmax), Row = seq_len(plate_info$rowmax))
 
   # Empty wells first, so the plate outline shows wherever there is no data.
   p <- ggplot2::ggplot(plotting_data, ggplot2::aes(x = Column, y = Row)) +
-    ggplot2::geom_tile(data = grid, ggplot2::aes(x = Column, y = Row),
-                       fill = empty_fill, colour = empty_colour,
-                       width = 0.92, height = 0.92, linewidth = 0.2,
-                       inherit.aes = FALSE)
+    plate_empty_layer(plate_info, empty_fill, empty_colour)
 
   if (isTRUE(interactive)) {
-    plotting_data$.tooltip <- paste0(plotting_data$.well, ": ", plotting_data[[fill_name]])
+    plotting_data$.tooltip <- if (is.null(tooltip)) {
+      paste0(plotting_data$.well, ": ", plotting_data[[fill_name]])
+    } else {
+      as.character(plotting_data[[tooltip]])
+    }
     p <- p + tile_geom(
       data = plotting_data,
       ggplot2::aes(fill = fill, tooltip = .tooltip, data_id = .well),
@@ -185,7 +214,7 @@ plot_plate_tiles <- function(plotting_data, plate_info, xlim, ylim, fill_name, c
     show_legend <- if (identical(legend, "auto")) n_keys <= 12 else isTRUE(legend)
   }
 
-  axis_size <- switch(as.character(plate), "1536" = 5, "384" = 7, 9)
+  axis_size <- plate_axis_size(plate)
   p <- p +
     ggplot2::coord_fixed(ratio = 1, xlim = xlim, ylim = ylim, expand = FALSE) +
     ggplot2::scale_y_reverse(breaks = seq_len(plate_info$rowmax), labels = plate_info$rows) +
@@ -199,4 +228,24 @@ plot_plate_tiles <- function(plotting_data, plate_info, xlim, ylim, fill_name, c
       legend.position = if (show_legend) "right" else "none"
     )
   p
+}
+
+# Shared by plot_plate() and plot_plate_pair().
+# Faint tile for every well of a plate, optionally shifted right by `x_offset`
+# (and given a y-direction `y_sign`, -1 to draw rows downwards without a
+# reversed scale).
+plate_empty_layer <- function(plate_info, empty_fill = "grey93",
+                              empty_colour = "grey80", x_offset = 0, y_sign = 1) {
+  grid <- expand.grid(Column = seq_len(plate_info$colmax),
+                      Row = seq_len(plate_info$rowmax))
+  grid$x <- grid$Column + x_offset
+  grid$y <- y_sign * grid$Row
+  ggplot2::geom_tile(data = grid, ggplot2::aes(x = x, y = y),
+                     fill = empty_fill, colour = empty_colour,
+                     width = 0.92, height = 0.92, linewidth = 0.2,
+                     inherit.aes = FALSE)
+}
+
+plate_axis_size <- function(plate) {
+  switch(as.character(plate), "1536" = 5, "384" = 7, 9)
 }

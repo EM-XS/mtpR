@@ -10,5 +10,6 @@ NULL
 # Declaring them here keeps `R CMD check` quiet about "no visible binding".
 utils::globalVariables(c(
   "Row", "Column", "fill", ".well", ".tooltip", ".label",
-  "Plate.Index", "Well.Index", "Well.Position"
+  "Plate.Index", "Well.Index", "Well.Position",
+  "x", "y", "xend", "yend", "id", "tooltip", "label", "hjust", "size"
 ))
