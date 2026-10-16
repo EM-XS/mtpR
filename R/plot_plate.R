@@ -235,11 +235,12 @@ plot_plate_tiles <- function(plotting_data, plate_info, xlim, ylim, fill_name, c
 # (and given a y-direction `y_sign`, -1 to draw rows downwards without a
 # reversed scale).
 plate_empty_layer <- function(plate_info, empty_fill = "grey93",
-                              empty_colour = "grey80", x_offset = 0, y_sign = 1) {
+                              empty_colour = "grey80", x_offset = 0, y_sign = 1,
+                              y_offset = 0) {
   grid <- expand.grid(Column = seq_len(plate_info$colmax),
                       Row = seq_len(plate_info$rowmax))
   grid$x <- grid$Column + x_offset
-  grid$y <- y_sign * grid$Row
+  grid$y <- y_sign * grid$Row - y_offset
   ggplot2::geom_tile(data = grid, ggplot2::aes(x = x, y = y),
                      fill = empty_fill, colour = empty_colour,
                      width = 0.92, height = 0.92, linewidth = 0.2,

@@ -69,14 +69,16 @@ test_that("interactive pair builds a girafe with linked data_ids", {
   expect_equal(attr(g, "summary")$transfers, 7)
   html <- html_of(g)
   expect_match(html, "data-id")
-  expect_match(html, "s:A1", fixed = TRUE)
-  expect_match(html, "d:B3", fixed = TRUE)
-  expect_match(html, "l:A1>A1", fixed = TRUE)
+  expect_match(html, "s:Src1:A1", fixed = TRUE)
+  expect_match(html, "d:Assay:B3", fixed = TRUE)
+  expect_match(html, "l:Src1:A1>Assay:A1", fixed = TRUE)
   expect_match(html, "3 transfers, 100 nL", fixed = TRUE)
   rel <- g$jsHooks$render[[1]]$data
-  expect_setequal(unlist(rel[["s:A1"]]),
-                  c("d:A1", "d:A2", "d:A3", "l:A1>A1", "l:A1>A2", "l:A1>A3"))
-  expect_setequal(unlist(rel[["d:A1"]]), c("s:A1", "s:B1", "l:A1>A1", "l:B1>A1"))
+  expect_setequal(unlist(rel[["s:Src1:A1"]]),
+                  c("d:Assay:A1", "d:Assay:A2", "d:Assay:A3", "l:Src1:A1>Assay:A1",
+                    "l:Src1:A1>Assay:A2", "l:Src1:A1>Assay:A3"))
+  expect_setequal(unlist(rel[["d:Assay:A1"]]),
+                  c("s:Src1:A1", "s:Src1:B1", "l:Src1:A1>Assay:A1", "l:Src1:B1>Assay:A1"))
 })
 
 test_that("links modes", {
@@ -90,7 +92,7 @@ test_that("links modes", {
   p0 <- plot_plate_pair(pl, links = "all", link_curvature = 0)
   expect_true(any(vapply(p0$layers, function(l) inherits(l$geom, "GeomSegment"), TRUE)))
   # interactive: links exist but start invisible in "hover", none with "none"
-  expect_match(html_of(plot_plate_pair(pl, interactive = TRUE)), "l:A1>A1", fixed = TRUE)
+  expect_match(html_of(plot_plate_pair(pl, interactive = TRUE)), "l:Src1:A1>Assay:A1", fixed = TRUE)
   expect_false(grepl("data-id=.l:", html_of(plot_plate_pair(pl, links = "none", interactive = TRUE))))
   expect_true(grepl("data-id=.l:", html_of(plot_plate_pair(pl, interactive = TRUE))))
   expect_error(plot_plate_pair(pl, links = "sometimes"))
@@ -113,7 +115,8 @@ test_that("fill options and plate-name selection", {
     plot_plate_pair(pl, source_fill = "count", dest_fill = "type")))
   expect_error(plot_plate_pair(pl, dest_fill = "nope"), "dest_fill")
   pl2 <- rbind(pl, transform(pl, `Source Plate Name` = "Src2"))
-  expect_error(plot_plate_pair(pl2), "source_plate_id")
+  # all plates are drawn by default; the id is only a filter
+  expect_equal(attr(plot_plate_pair(pl2), "summary")$transfers, 14)
   expect_equal(attr(plot_plate_pair(pl2, source_plate_id = "Src2"), "summary")$transfers, 7)
   expect_error(plot_plate_pair(pl2, source_plate_id = "zzz"), "No source plate")
 })
@@ -124,4 +127,76 @@ test_that("bad input errors clearly", {
   expect_error(plot_plate_pair(bad, source_plate = 96), "does not fit a 96")
   expect_error(plot_plate_pair(picklist(), dest_plate = 7), "Unsupported")
   expect_error(plot_plate_pair("x"), "data frame")
+})
+
+# --- several plates per side ---------------------------------------------------
+
+multi_picklist <- function() {
+  data.frame(
+    `Source Plate Name` = rep(c("Res", "Src"), c(3, 4)),
+    `Source Plate Type` = rep(c("6RES_AQ_GP3", "384PP_AQ_BP"), c(3, 4)),
+    `Source Well` = c("A1", "A1", "B2", "A1", "A1", "B2", "P24"),
+    `Destination Plate Name` = "Assay",
+    `Destination Well` = c("A1", "A2", "A3", "B1", "B2", "B3", "P24"),
+    `Transfer Volume` = c(100, 100, 50, 25, 25, 50, 75),
+    check.names = FALSE
+  )
+}
+tile_boxes <- function(p) {
+  # bounding boxes (xmin, xmax, ymin, ymax) of the plate-shaped empty-well layers
+  do.call(rbind, lapply(p$layers[seq_len(3)], function(l) {
+    d <- l$data
+    data.frame(xmin = min(d$x) - .5, xmax = max(d$x) + .5, ymin = min(d$y) - .5, ymax = max(d$y) + .5)
+  }))
+}
+
+test_that("two source plates of different types share one picture without overlap", {
+  p <- plot_plate_pair(multi_picklist())
+  expect_s3_class(p, "ggplot")
+  b <- tile_boxes(p)   # Res (6), Src (384), Assay (384)
+  expect_equal(c(b$xmax[1] - b$xmin[1], b$ymax[1] - b$ymin[1]), c(3, 2))      # 6RES
+  expect_equal(c(b$xmax[2] - b$xmin[2], b$ymax[2] - b$ymin[2]), c(24, 16))    # 384PP
+  overlap <- function(i, j) b$xmin[i] < b$xmax[j] && b$xmin[j] < b$xmax[i] &&
+    b$ymin[i] < b$ymax[j] && b$ymin[j] < b$ymax[i]
+  expect_false(overlap(1, 2))
+  expect_false(overlap(1, 3))
+  expect_false(overlap(2, 3))
+  expect_gt(b$xmin[3], b$xmax[2])   # destination is to the right of all sources
+  s <- attr(p, "summary")
+  expect_equal(s$by_source_plate$source_plate, c("Res", "Src"))
+  expect_equal(s$by_dest_plate$dest_plate, "Assay")
+  expect_equal(s$by_dest_plate$volume, 425)
+})
+
+test_that("explicit and named plate sizes work", {
+  p <- plot_plate_pair(multi_picklist(), source_plate = c(Res = 6, Src = 384), dest_plate = 384)
+  expect_equal(max(p$layers[[1]]$data$x), 3)
+  expect_error(plot_plate_pair(multi_picklist(), source_plate = c(Res = 6)), "no size for plate 'Src'")
+  expect_equal(max(plot_plate_pair(multi_picklist(), source_plate = 384)$layers[[1]]$data$x), 24)
+})
+
+test_that("plate_id filters plates", {
+  p <- plot_plate_pair(multi_picklist(), source_plate_id = "Src")
+  expect_equal(attr(p, "summary")$transfers, 4)
+})
+
+test_that("the same well on two plates gets distinct interactive ids", {
+  skip_if_not_installed("ggiraph"); skip_if_not_installed("htmltools"); skip_if_not_installed("htmlwidgets")
+  g <- plot_plate_pair(multi_picklist(), interactive = TRUE)
+  html <- html_of(g)
+  expect_match(html, "s:Res:A1", fixed = TRUE)
+  expect_match(html, "s:Src:A1", fixed = TRUE)
+  rel <- g$jsHooks$render[[1]]$data
+  expect_setequal(unlist(rel[["s:Res:A1"]]),
+                  c("d:Assay:A1", "d:Assay:A2", "l:Res:A1>Assay:A1", "l:Res:A1>Assay:A2"))
+  expect_setequal(unlist(rel[["s:Src:A1"]]),
+                  c("d:Assay:B1", "d:Assay:B2", "l:Src:A1>Assay:B1", "l:Src:A1>Assay:B2"))
+  expect_setequal(unlist(rel[["d:Assay:A1"]]), c("s:Res:A1", "l:Res:A1>Assay:A1"))
+})
+
+test_that("picklist_summary has by_dest_plate", {
+  s <- picklist_summary(multi_picklist())
+  expect_equal(s$by_dest_plate$transfers, 7)
+  expect_equal(s$by_dest_plate$dest_wells, 7)
+  expect_equal(s$by_source_plate$volume, c(250, 175))
 })

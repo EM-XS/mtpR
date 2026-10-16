@@ -9,8 +9,8 @@ plot_plate_pair(
   source_well = "Source Well",
   dest_well = "Destination Well",
   volume = "Transfer Volume",
-  source_plate = 384,
-  dest_plate = 384,
+  source_plate = NULL,
+  dest_plate = NULL,
   source_fill = "volume",
   dest_fill = "volume",
   links = c("hover", "all", "none"),
@@ -18,6 +18,8 @@ plot_plate_pair(
   link_alpha = NULL,
   source_plate_col = "Source Plate Name",
   dest_plate_col = "Destination Plate Name",
+  source_type_col = "Source Plate Type",
+  dest_type_col = "Destination Plate Type",
   source_plate_id = NULL,
   dest_plate_id = NULL,
   volume_unit = "nL",
@@ -35,7 +37,11 @@ transfer count. The default \code{"Transfer Volume"} falls back to counts when
 the column is absent.}
 
 \item{source_plate, dest_plate}{Plate sizes (number of wells), as accepted by
-\code{\link[=plot_plate]{plot_plate()}}.}
+\code{\link[=plot_plate]{plot_plate()}}. One number applies to every plate on that side; a named
+vector or list keyed by plate name sets each plate (\code{c(Src1 = 6, Src2 = 384)}).
+\code{NULL} (default) reads the size from the plate type column
+(\verb{6RES} is 6, \verb{384PP_AQ_BP} and \verb{384LDV} are 384, \verb{1536LDV} is 1536; an
+unrecognised type is taken as 384), or uses 384 without one.}
 
 \item{source_fill, dest_fill}{What shades each side: \code{"volume"} (default),
 \code{"count"} of transfers, or the name of a column of \code{transfers} (its first
@@ -51,8 +57,11 @@ links.}
 
 \item{source_plate_col, dest_plate_col}{Names of the plate name columns.}
 
-\item{source_plate_id, dest_plate_id}{The plate to draw when the picklist
-holds several (a value of the plate name column). Needed only then.}
+\item{source_type_col, dest_type_col}{Names of the plate type columns, used
+for sizes and titles when present.}
+
+\item{source_plate_id, dest_plate_id}{Optional filter: draw only these plates
+(values of the plate name column). By default all plates are drawn.}
 
 \item{volume_unit}{Unit shown in tooltips and titles.}
 
@@ -66,8 +75,11 @@ transfers (for a girafe, on the \code{x} list element too:
 \code{attr(g, "summary")}).
 }
 \description{
-Draws the plate transfers go \emph{from} beside the plate they go \emph{to}, e.g. an
-Echo picklist as a 384PP source plate next to a 384-well assay plate. Each
+Draws the plate(s) transfers go \emph{from} beside the plate(s) they go \emph{to}, e.g.
+an Echo picklist as a 384PP source plate next to a 384-well assay plate.
+When the picklist uses several plates, all source plates are stacked down
+the left and all destination plates down the right of the same panel, each
+titled with its name and type, so links can run between any two plates. Each
 well is either used by the transfers or empty. Source wells are shaded by
 the volume drawn from them (or the number of transfers), destination wells
 by the volume received.
@@ -85,8 +97,9 @@ wells it feeds and brightens the links to them; hovering a destination well
 does the same for its sources. Tooltips give the well, the number of
 transfers and the total volume. Highlighting runs a small piece of
 JavaScript added with \code{htmlwidgets::onRender()} that matches the ggiraph
-\code{data_id}s (\verb{s:<well>} source, \verb{d:<well>} destination, \verb{l:<src>><dest>}
-link). With \code{links = "hover"} links are invisible until a well is hovered;
+\code{data_id}s (\verb{s:<plate>:<well>} source, \verb{d:<plate>:<well>} destination,
+\verb{l:<splate>:<well>><dplate>:<well>} link), so the same well on two plates
+highlights separately. With \code{links = "hover"} links are invisible until a well is hovered;
 above 2000 distinct source-destination pairs they are not drawn.
 }
 

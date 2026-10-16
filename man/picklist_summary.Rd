@@ -32,7 +32,9 @@ A list with
 \item \code{source_wells}, \code{dest_wells}: distinct wells used (per plate name);
 \item \code{total_volume}: the summed volume (\code{NA} without a volume column);
 \item \code{by_source_plate}: a data frame with \code{source_plate}, \code{transfers},
-\code{source_wells} and \code{volume} for each source plate.
+\code{source_wells} and \code{volume} (drawn) for each source plate;
+\item \code{by_dest_plate}: the same for destination plates, with \code{dest_plate},
+\code{transfers}, \code{dest_wells} and \code{volume} (received).
 }
 }
 \description{

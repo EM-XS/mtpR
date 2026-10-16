@@ -15,7 +15,9 @@
 #'   * `source_wells`, `dest_wells`: distinct wells used (per plate name);
 #'   * `total_volume`: the summed volume (`NA` without a volume column);
 #'   * `by_source_plate`: a data frame with `source_plate`, `transfers`,
-#'     `source_wells` and `volume` for each source plate.
+#'     `source_wells` and `volume` (drawn) for each source plate;
+#'   * `by_dest_plate`: the same for destination plates, with `dest_plate`,
+#'     `transfers`, `dest_wells` and `volume` (received).
 #' @examples
 #' pl <- data.frame(`Source Plate Name` = "Src1",
 #'                  `Source Well` = c("A1", "A1", "B1"),
@@ -51,30 +53,40 @@ picklist_summary <- function(transfers,
   dw <- canon(transfers[[dest_well]])
   vol <- if (is.null(volume)) rep(NA_real_, nrow(transfers)) else as.numeric(transfers[[volume]])
 
-  by_plate <- lapply(unique(sp), function(p) {
-    i <- sp == p
-    data.frame(source_plate = p, transfers = sum(i),
-               source_wells = length(unique(sw[i])),
-               volume = if (is.null(volume)) NA_real_ else sum(vol[i], na.rm = TRUE),
-               stringsAsFactors = FALSE)
-  })
-  by_plate <- if (length(by_plate)) do.call(rbind, by_plate) else
-    data.frame(source_plate = character(), transfers = integer(),
-               source_wells = integer(), volume = numeric())
+  by_plate <- function(plate, well, label, name) {
+    out <- lapply(unique(plate), function(p) {
+      i <- plate == p
+      r <- data.frame(plate = p, transfers = sum(i),
+                      wells = length(unique(well[i])),
+                      volume = if (is.null(volume)) NA_real_ else sum(vol[i], na.rm = TRUE),
+                      stringsAsFactors = FALSE)
+      names(r) <- c(name, "transfers", label, "volume")
+      r
+    })
+    if (length(out)) do.call(rbind, out) else {
+      r <- data.frame(character(), integer(), integer(), numeric())
+      names(r) <- c(name, "transfers", label, "volume")
+      r
+    }
+  }
 
   list(
     transfers = nrow(transfers),
     source_wells = length(unique(paste(sp, sw))),
     dest_wells = length(unique(paste(dp, dw))),
     total_volume = if (is.null(volume)) NA_real_ else sum(vol, na.rm = TRUE),
-    by_source_plate = by_plate
+    by_source_plate = by_plate(sp, sw, "source_wells", "source_plate"),
+    by_dest_plate = by_plate(dp, dw, "dest_wells", "dest_plate")
   )
 }
 
 #' Plot a source plate and a destination plate with transfer links
 #'
-#' Draws the plate transfers go *from* beside the plate they go *to*, e.g. an
-#' Echo picklist as a 384PP source plate next to a 384-well assay plate. Each
+#' Draws the plate(s) transfers go *from* beside the plate(s) they go *to*, e.g.
+#' an Echo picklist as a 384PP source plate next to a 384-well assay plate.
+#' When the picklist uses several plates, all source plates are stacked down
+#' the left and all destination plates down the right of the same panel, each
+#' titled with its name and type, so links can run between any two plates. Each
 #' well is either used by the transfers or empty. Source wells are shaded by
 #' the volume drawn from them (or the number of transfers), destination wells
 #' by the volume received.
@@ -90,8 +102,9 @@ picklist_summary <- function(transfers,
 #' does the same for its sources. Tooltips give the well, the number of
 #' transfers and the total volume. Highlighting runs a small piece of
 #' JavaScript added with `htmlwidgets::onRender()` that matches the ggiraph
-#' `data_id`s (`s:<well>` source, `d:<well>` destination, `l:<src>><dest>`
-#' link). With `links = "hover"` links are invisible until a well is hovered;
+#' `data_id`s (`s:<plate>:<well>` source, `d:<plate>:<well>` destination,
+#' `l:<splate>:<well>><dplate>:<well>` link), so the same well on two plates
+#' highlights separately. With `links = "hover"` links are invisible until a well is hovered;
 #' above 2000 distinct source-destination pairs they are not drawn.
 #'
 #' @section Static use:
@@ -107,7 +120,13 @@ picklist_summary <- function(transfers,
 #'   transfer count. The default `"Transfer Volume"` falls back to counts when
 #'   the column is absent.
 #' @param source_plate,dest_plate Plate sizes (number of wells), as accepted by
-#'   [plot_plate()].
+#'   [plot_plate()]. One number applies to every plate on that side; a named
+#'   vector or list keyed by plate name sets each plate (`c(Src1 = 6, Src2 = 384)`).
+#'   `NULL` (default) reads the size from the plate type column
+#'   (`6RES` is 6, `384PP_AQ_BP` and `384LDV` are 384, `1536LDV` is 1536; an
+#'   unrecognised type is taken as 384), or uses 384 without one.
+#' @param source_type_col,dest_type_col Names of the plate type columns, used
+#'   for sizes and titles when present.
 #' @param source_fill,dest_fill What shades each side: `"volume"` (default),
 #'   `"count"` of transfers, or the name of a column of `transfers` (its first
 #'   value per well, drawn as discrete colours).
@@ -117,8 +136,8 @@ picklist_summary <- function(transfers,
 #' @param link_alpha Link transparency; the default scales with the number of
 #'   links.
 #' @param source_plate_col,dest_plate_col Names of the plate name columns.
-#' @param source_plate_id,dest_plate_id The plate to draw when the picklist
-#'   holds several (a value of the plate name column). Needed only then.
+#' @param source_plate_id,dest_plate_id Optional filter: draw only these plates
+#'   (values of the plate name column). By default all plates are drawn.
 #' @param volume_unit Unit shown in tooltips and titles.
 #' @param interactive If `TRUE`, return a ggiraph girafe object (needs the
 #'   ggiraph and htmlwidgets packages).
@@ -149,8 +168,8 @@ plot_plate_pair <- function(transfers,
                             source_well = "Source Well",
                             dest_well = "Destination Well",
                             volume = "Transfer Volume",
-                            source_plate = 384,
-                            dest_plate = 384,
+                            source_plate = NULL,
+                            dest_plate = NULL,
                             source_fill = "volume",
                             dest_fill = "volume",
                             links = c("hover", "all", "none"),
@@ -158,6 +177,8 @@ plot_plate_pair <- function(transfers,
                             link_alpha = NULL,
                             source_plate_col = "Source Plate Name",
                             dest_plate_col = "Destination Plate Name",
+                            source_type_col = "Source Plate Type",
+                            dest_type_col = "Destination Plate Type",
                             source_plate_id = NULL,
                             dest_plate_id = NULL,
                             volume_unit = "nL",
@@ -180,8 +201,6 @@ plot_plate_pair <- function(transfers,
   check_col(transfers, source_well, "source_well")
   check_col(transfers, dest_well, "dest_well")
   volume <- resolve_volume(transfers, volume)
-  src_info <- platesize_check(source_plate)
-  dst_info <- platesize_check(dest_plate)
 
   transfers <- pick_plate(transfers, source_plate_col, source_plate_id, "source")
   transfers <- pick_plate(transfers, dest_plate_col, dest_plate_id, "destination")
@@ -193,25 +212,39 @@ plot_plate_pair <- function(transfers,
                               source_plate_col, dest_plate_col)
   n_transfers <- nrow(transfers)
 
-  # Canonical well keys (A1, not A01) so A1 and A01 are the same well.
+  sp <- plate_names(transfers, source_plate_col)
+  dp <- plate_names(transfers, dest_plate_col)
+  src_lay <- plate_layout(sp, type_values(transfers, source_type_col), source_plate, "source")
+  dst_lay <- plate_layout(dp, type_values(transfers, dest_type_col), dest_plate, "destination")
+
+  # Canonical well keys (A1, not A01) so A1 and A01 are the same well, checked
+  # against the size of the plate each transfer belongs to.
   tr <- data.frame(
-    s = well_key(transfers[[source_well]], src_info, source_plate, "source"),
-    d = well_key(transfers[[dest_well]], dst_info, dest_plate, "destination"),
+    sp = sp, dp = dp,
+    s = plate_well_keys(transfers[[source_well]], sp, src_lay, "source"),
+    d = plate_well_keys(transfers[[dest_well]], dp, dst_lay, "destination"),
     vol = if (is.null(volume)) 1 else as.numeric(transfers[[volume]]),
     stringsAsFactors = FALSE
   )
   tr$vol[is.na(tr$vol)] <- 0
+  tr$su <- paste(tr$sp, tr$s, sep = ":")
+  tr$du <- paste(tr$dp, tr$d, sep = ":")
   use_volume <- !is.null(volume)
-  src <- summarise_wells(tr, "s", transfers, source_fill, "source_fill")
-  dst <- summarise_wells(tr, "d", transfers, dest_fill, "dest_fill")
-  src <- place_wells(src, src_info, x_offset = 0)
 
-  # Layout: one panel, y runs downwards as negative numbers.
-  gap <- max(5, round(0.15 * (src_info$colmax + dst_info$colmax)))
-  ox <- src_info$colmax + gap
-  dst <- place_wells(dst, dst_info, x_offset = ox)
+  # Layout: one panel. Source plates are stacked down the left, destination
+  # plates down the right; y runs downwards as negative numbers.
+  gap <- max(5, round(0.15 * (max(src_lay$colmax) + max(dst_lay$colmax))))
+  ox <- max(src_lay$colmax) + gap
+  dst_lay$xo <- ox
+  src_lay$xo <- 0
+  total_w <- ox + max(dst_lay$colmax) + 4
+  height_rows <- max(sum(src_lay$rowmax + 5) - 5, sum(dst_lay$rowmax + 5) - 5)
 
-  pairs <- unique(tr[, c("s", "d")])
+  src <- place_wells(summarise_wells(tr, "su", "sp", "s", transfers, source_fill, "source_fill"), src_lay)
+  dst <- place_wells(summarise_wells(tr, "du", "dp", "d", transfers, dest_fill, "dest_fill"), dst_lay)
+
+  pairs <- unique(tr[, c("su", "du")])
+  names(pairs) <- c("s", "d")
   n_links <- nrow(pairs)
 
   # Decide what links to draw.
@@ -235,9 +268,13 @@ plot_plate_pair <- function(transfers,
   tiles_dst <- tile_data(dst, "d", "Destination", use_volume, volume_unit,
                          dest_fill, lo = "#f1dcc9", hi = "#8a3b12")
 
-  p <- ggplot2::ggplot() +
-    plate_empty_layer(src_info, x_offset = 0, y_sign = -1) +
-    plate_empty_layer(dst_info, x_offset = ox, y_sign = -1)
+  p <- ggplot2::ggplot()
+  for (lay in list(src_lay, dst_lay)) {
+    for (i in seq_len(nrow(lay))) {
+      p <- p + plate_empty_layer(lay$info[[i]], x_offset = lay$xo[i],
+                                 y_sign = -1, y_offset = lay$yo[i])
+    }
+  }
 
   if (draw_links) {
     ls <- src[match(pairs$s, src$key), c("x", "y")]
@@ -276,15 +313,15 @@ plot_plate_pair <- function(transfers,
                        inherit.aes = FALSE)
   }
 
-  rmax <- max(src_info$rowmax, dst_info$rowmax)
-  axes <- rbind(
-    axis_labels(src_info, 0, "left", source_plate),
-    axis_labels(dst_info, ox, "right", dest_plate)
-  )
-  titles <- data.frame(
-    x = c(0.5, ox + 0.5), y = 1.6, hjust = 0,
-    label = c(paste0("Source (", source_plate, "-well)\n", td_caption(tiles_src)),
-              paste0("Destination (", dest_plate, "-well)\n", td_caption(tiles_dst)))
+  axes <- do.call(rbind, c(
+    lapply(seq_len(nrow(src_lay)), function(i)
+      axis_labels(src_lay$info[[i]], 0, "left", src_lay$size[i], src_lay$yo[i])),
+    lapply(seq_len(nrow(dst_lay)), function(i)
+      axis_labels(dst_lay$info[[i]], ox, "right", dst_lay$size[i], dst_lay$yo[i]))
+  ))
+  titles <- rbind(
+    plate_titles(src_lay, "Source", tiles_src$caption, 0),
+    plate_titles(dst_lay, "Destination", tiles_dst$caption, ox)
   )
   caption <- paste0(
     format(summary$transfers, big.mark = ","), " transfers, ",
@@ -295,7 +332,8 @@ plot_plate_pair <- function(transfers,
     ".", if (!is.null(link_note)) paste0("\n", link_note) else ""
   )
 
-  total_w <- ox + dst_info$colmax + 4
+  rmax <- height_rows
+
   p <- p +
     ggplot2::scale_fill_identity() +
     ggplot2::geom_text(data = axes, ggplot2::aes(x = x, y = y, label = label,
@@ -358,25 +396,89 @@ resolve_volume <- function(df, volume) {
   stop("`volume` column '", volume, "' not found in `transfers`.", call. = FALSE)
 }
 
+# Optional filter to the named plate(s); drawing all plates is the default.
 pick_plate <- function(df, col, id, what) {
-  if (!is.null(col) && col %in% names(df)) {
-    plates <- unique(as.character(df[[col]]))
-    if (!is.null(id)) {
-      if (!id %in% plates) {
-        stop("No ", what, " plate named '", id, "' in `", col, "`. Found: ",
-             paste(plates, collapse = ", "), ".", call. = FALSE)
-      }
-      df <- df[as.character(df[[col]]) == id, , drop = FALSE]
-    } else if (length(plates) > 1) {
-      stop("`transfers` has ", length(plates), " ", what, " plates (",
-           paste(plates, collapse = ", "), "). Choose one with `",
-           if (what == "source") "source_plate_id" else "dest_plate_id", "`.",
-           call. = FALSE)
-    }
-  } else if (!is.null(id)) {
+  if (is.null(id)) return(df)
+  if (is.null(col) || !col %in% names(df)) {
     stop("`", col, "` is not a column of `transfers`.", call. = FALSE)
   }
-  df
+  plates <- unique(as.character(df[[col]]))
+  missing_id <- setdiff(id, plates)
+  if (length(missing_id)) {
+    stop("No ", what, " plate named '", missing_id[1], "' in `", col,
+         "`. Found: ", paste(plates, collapse = ", "), ".", call. = FALSE)
+  }
+  df[as.character(df[[col]]) %in% id, , drop = FALSE]
+}
+
+plate_names <- function(df, col) {
+  if (!is.null(col) && col %in% names(df)) as.character(df[[col]]) else
+    rep("(all)", nrow(df))
+}
+
+type_values <- function(df, col) {
+  if (!is.null(col) && col %in% names(df)) as.character(df[[col]]) else NULL
+}
+
+# "6RES" -> 6, "384PP_AQ_BP" / "384LDV" -> 384, "1536LDV" -> 1536; unknown -> 384.
+size_from_type <- function(type) {
+  n <- suppressWarnings(as.integer(sub("^([0-9]+).*$", "\\1", type)))
+  ifelse(grepl("^[0-9]+", type) & n %in% c(6, 12, 24, 48, 96, 384, 1536), n, 384L)
+}
+
+# One row per plate (in order of appearance) with its size, type label, layout
+# info and vertical offset. `spec`: NULL (from the type column, else 384), one
+# number for all plates, or a named vector/list keyed by plate name.
+plate_layout <- function(names_vec, types, spec, what) {
+  plates <- unique(names_vec)
+  first <- match(plates, names_vec)
+  type <- if (is.null(types)) rep(NA_character_, length(plates)) else types[first]
+  if (is.null(spec)) {
+    size <- if (is.null(types)) rep(384L, length(plates)) else size_from_type(type)
+  } else {
+    spec <- unlist(spec)
+    if (is.null(names(spec))) {
+      if (length(spec) != 1) {
+        stop("`", what, "_plate` must be one size or a named vector keyed by plate name.",
+             call. = FALSE)
+      }
+      size <- rep(spec[[1]], length(plates))
+    } else {
+      miss <- setdiff(plates, names(spec))
+      if (length(miss)) {
+        stop("`", what, "_plate` has no size for plate '", miss[1], "'.", call. = FALSE)
+      }
+      size <- unname(spec[plates])
+    }
+  }
+  info <- lapply(size, platesize_check)
+  rowmax <- vapply(info, function(i) i$rowmax, 1)
+  out <- data.frame(name = plates, type = type, size = size, rowmax = rowmax,
+                    colmax = vapply(info, function(i) i$colmax, 1),
+                    yo = cumsum(c(0, rowmax + 5))[seq_along(plates)],
+                    xo = 0, stringsAsFactors = FALSE)
+  out$info <- info
+  out
+}
+
+plate_well_keys <- function(wells, plate_vec, lay, what) {
+  out <- character(length(wells))
+  for (i in seq_len(nrow(lay))) {
+    j <- plate_vec == lay$name[i]
+    out[j] <- well_key(wells[j], lay$info[[i]], lay$size[i], what)
+  }
+  out
+}
+
+plate_titles <- function(lay, side, caption, x_offset) {
+  title <- vapply(seq_len(nrow(lay)), function(i) {
+    nm <- if (lay$name[i] == "(all)") "" else paste0(" ", lay$name[i])
+    kind <- if (is.na(lay$type[i])) paste0(lay$size[i], "-well") else lay$type[i]
+    t <- paste0(side, nm, " (", kind, ")")
+    if (i == 1) paste0(t, "\n", caption) else t
+  }, "")
+  data.frame(x = x_offset + 0.5, y = 1.6 - lay$yo, label = title,
+             stringsAsFactors = FALSE)
 }
 
 # "A01"/"a1" -> "A1", checked against the plate size.
@@ -394,10 +496,13 @@ well_key <- function(wells, info, size, what) {
   paste0(info$rows[rc$Row], rc$Column)
 }
 
-summarise_wells <- function(tr, key, transfers, fill, arg) {
-  idx <- split(seq_len(nrow(tr)), tr[[key]])
+# One row per used well. `uid` is "<plate>:<well>".
+summarise_wells <- function(tr, uid, plate, well, transfers, fill, arg) {
+  idx <- split(seq_len(nrow(tr)), tr[[uid]])
   out <- data.frame(
     key = names(idx),
+    plate = vapply(idx, function(i) tr[[plate]][i[1]], ""),
+    well = vapply(idx, function(i) tr[[well]][i[1]], ""),
     n = vapply(idx, length, 1L),
     volume = vapply(idx, function(i) sum(tr$vol[i]), 1),
     stringsAsFactors = FALSE, row.names = NULL
@@ -413,21 +518,23 @@ summarise_wells <- function(tr, key, transfers, fill, arg) {
   out
 }
 
-place_wells <- function(df, info, x_offset) {
-  m <- regmatches(df$key, regexec("^([A-Z]+)([0-9]+)$", df$key))
-  row <- match(vapply(m, `[`, "", 2), info$rows)
-  df$x <- as.numeric(vapply(m, `[`, "", 3)) + x_offset
-  df$y <- -row
+place_wells <- function(df, lay) {
+  p <- match(df$plate, lay$name)
+  m <- regmatches(df$well, regexec("^([A-Z]+)([0-9]+)$", df$well))
+  row <- vapply(seq_along(p), function(i) match(m[[i]][2], lay$info[[p[i]]]$rows), 1L)
+  df$x <- as.numeric(vapply(m, `[`, "", 3)) + lay$xo[p]
+  df$y <- -row - lay$yo[p]
   df
 }
 
 # Colour each used well and describe the scale for the plate title.
 tile_data <- function(w, prefix, side, use_volume, unit, fill, lo, hi) {
   w$id <- paste0(prefix, ":", w$key)
+  label <- ifelse(w$plate == "(all)", w$well, paste0(w$plate, " ", w$well))
   vol_txt <- if (use_volume) {
     paste0(", ", format(w$volume, big.mark = ",", trim = TRUE), " ", unit)
   } else ""
-  w$tooltip <- paste0(side, " ", w$key, ": ", w$n,
+  w$tooltip <- paste0(side, " ", label, ": ", w$n,
                       ifelse(w$n == 1, " transfer", " transfers"), vol_txt)
   ramp <- grDevices::colorRamp(c(lo, hi))
   shade <- function(v) {
@@ -455,18 +562,16 @@ tile_data <- function(w, prefix, side, use_volume, unit, fill, lo, hi) {
   list(data = w, caption = caption)
 }
 
-td_caption <- function(td) td$caption
-
-axis_labels <- function(info, x_offset, side, size) {
+axis_labels <- function(info, x_offset, side, size, y_offset = 0) {
   step <- if (info$colmax > 24) 2 else 1
   txt <- switch(as.character(size), "1536" = 1.5, "384" = 2.2, 2.8)
   cols <- seq(1, info$colmax, by = step)
   rows <- seq(1, info$rowmax, by = step)
   rbind(
-    data.frame(x = cols + x_offset, y = 0, label = as.character(cols),
+    data.frame(x = cols + x_offset, y = 0 - y_offset, label = as.character(cols),
                hjust = 0.5, size = txt, stringsAsFactors = FALSE),
     data.frame(x = if (side == "left") x_offset + 0 else x_offset + info$colmax + 1,
-               y = -rows, label = info$rows[rows],
+               y = -rows - y_offset, label = info$rows[rows],
                hjust = if (side == "left") 1 else 0, size = txt,
                stringsAsFactors = FALSE)
   )
