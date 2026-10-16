@@ -172,7 +172,8 @@ plate_designer_server <- function(id) {
             well_id = "Well.Position",
             facet_rows = "Plate.Index",
             facet_cols = "PlateReplicate.Number",
-            plate = as.numeric(input$destplate)
+            plate = as.numeric(input$destplate),
+            scale = "discrete"
           ) +
           ggplot2::labs(fill = "Reaction") +
           ggplot2::theme(legend.position = "bottom")

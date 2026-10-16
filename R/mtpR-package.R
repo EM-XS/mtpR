@@ -9,6 +9,6 @@ NULL
 # Column names used in non-standard evaluation inside dplyr/ggplot2 verbs.
 # Declaring them here keeps `R CMD check` quiet about "no visible binding".
 utils::globalVariables(c(
-  "Row", "Column", "fill",
+  "Row", "Column", "fill", ".well", ".tooltip", ".label",
   "Plate.Index", "Well.Index", "Well.Position"
 ))

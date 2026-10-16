@@ -7,11 +7,17 @@
 replicate_reactions(
   rxn_df,
   reaction_col_name,
-  num_replicates,
-  priority,
-  inter_spacing,
-  intra_spacing,
-  start_position
+  num_replicates = replicates,
+  priority = NULL,
+  inter_spacing = 1,
+  intra_spacing = 1,
+  start_position = 1,
+  pattern = NULL,
+  seed = NULL,
+  replicates = NULL,
+  reserved = NULL,
+  plate = NULL,
+  fill_wise = "row"
 )
 }
 \arguments{
@@ -19,30 +25,85 @@ replicate_reactions(
 
 \item{reaction_col_name}{The column of unique reaction identifiers to be replicated.}
 
-\item{num_replicates}{The number of times each reaction should be replicated.}
+\item{num_replicates}{The number of replicates. One number for all
+reactions, a vector with one entry per row of `rxn_df`, or the name of a
+column of `rxn_df` holding the count for each reaction. (`replicates` is a
+synonym.)}
 
-\item{priority}{The priority for positioning: "Reaction" for reaction-first ordering,
-or "Replicate" for replicate-first ordering.}
+\item{priority}{Older way to choose the layout: `"Reaction"` (grouped) or
+`"Replicate"` (dealt). Ignored when `pattern` is given.}
 
 \item{inter_spacing}{The numeric distance between the sets, either different reactions or replicates.}
 
 \item{intra_spacing}{The numeric distance between replicates within a set.}
 
 \item{start_position}{The starting numeric position for the first entry.}
+
+\item{pattern}{`"grouped"`, `"dealt"` or `"scattered"` (see Details). Also
+`"Together"` and `"EveryOther"`.}
+
+\item{seed}{Random seed for `"scattered"`. If `NULL` one is drawn; either
+way the seed used is stored in `attr(result, "seed")`.}
+
+\item{replicates}{Synonym for `num_replicates`.}
+
+\item{reserved}{Wells to keep free: the output of [place_controls()], a
+vector of well labels (e.g. `c("A01", "H12")`) or a vector of position
+numbers on one plate. `NULL` (default) reserves nothing.}
+
+\item{plate}{Plate size. Needed when `reserved` is a vector; read from
+`reserved` when it comes from [place_controls()].}
+
+\item{fill_wise}{`"row"` or `"col"`: the direction positions run along the
+plate. Only used to turn reserved well labels into positions.}
 }
 \value{
 A data frame with the columns 'reaction', 'replicate', and 'position'.
         Each row corresponds to a reaction replicate with a unique assigned position.
 }
 \description{
-This function takes a vector of unique reaction identifiers and a number of replicates, and
-assigns a unique numeric position to each reaction based on the specified ordering priority.
+Takes a data frame of reactions and a number of replicates, and assigns a
+unique numeric position to every reaction replicate.
 }
+\details{
+The layout is chosen with `pattern`. For three reactions (1, 2, 3) and three
+replicates the order along the plate is:
+
+* `"grouped"`: `111 222 333`. Replicates of a reaction sit side by side.
+  Spacing: `intra_spacing` between replicates of one reaction and
+  `inter_spacing` between one reaction and the next.
+* `"dealt"`: `123 123 123`. The reactions are dealt out like cards, once per
+  replicate. Spacing: `inter_spacing` between reactions inside a round and
+  `intra_spacing` from one round to the next.
+* `"scattered"`: replicates and reactions in random order over the same
+  run of positions (spaced `inter_spacing` apart). Reproducible with `seed`.
+
+The older `priority` argument still works: `"Reaction"` is `"grouped"` and
+`"Replicate"` is `"dealt"`, with identical positions. `pattern` also accepts
+the names `"Together"` (grouped) and `"EveryOther"` (dealt).
+}
+\section{Reserved wells}{
+
+When `reserved` is given, those wells are skipped. Positions are first worked
+out as if no wells were reserved, and the n-th position counted from
+`start_position` is then moved to the n-th free well (so spacing is counted in
+free wells, and the layout flows around controls and onto the next plate).
+The reserved wells repeat on every plate.
+}
+
 \examples{
 data <- data.frame(rxn = 1:3)
 data <- replicate_reactions(data, "rxn", num_replicates = 3, priority = "Reaction",
                             inter_spacing = 10, intra_spacing = 1, start_position = 1)
 data <- replicate_reactions(data, "rxn", num_replicates = 3, priority = "Replicate",
                             inter_spacing = 5, intra_spacing = 1, start_position = 1)
+
+rxns <- data.frame(rxn = 1:3, n = c(2, 3, 1))
+replicate_reactions(rxns, "rxn", num_replicates = "n", pattern = "grouped")
+replicate_reactions(rxns, "rxn", num_replicates = 3, pattern = "scattered", seed = 1)
+
+# Keep the four corners of a 96-well plate free
+corners <- place_controls(96, wells = c("A01", "A12", "H01", "H12"))
+replicate_reactions(rxns, "rxn", 3, pattern = "grouped", reserved = corners)
 
 }
