@@ -87,7 +87,9 @@
 #'   `"Replicate"` (dealt). Ignored when `pattern` is given.
 #' @param inter_spacing The numeric distance between the sets, either different reactions or replicates.
 #' @param intra_spacing The numeric distance between replicates within a set.
-#' @param start_position The starting numeric position for the first entry.
+#' @param start_position The starting position for the first entry: a position
+#'   number, or a well label such as `"B01"` (then `plate`, or `reserved` from
+#'   [place_controls()], is needed, and `fill_wise` sets how it is numbered).
 #' @param pattern `"grouped"`, `"dealt"`, `"scattered"` or `"quadrants"` (see
 #'   Details). Also `"Together"` and `"EveryOther"`.
 #' @param seed Random seed for `"scattered"`. If `NULL` one is drawn; either
@@ -168,6 +170,17 @@ replicate_reactions <- function(rxn_df,
   }
   if (is.null(num_replicates)) {
     stop("`num_replicates` (or `replicates`) is required.", call. = FALSE)
+  }
+
+  if (is.character(start_position)) {
+    size <- if (inherits(reserved, "mtpr_plate")) attr(reserved, "plate") else plate
+    if (is.null(size)) {
+      stop("`plate` is required when `start_position` is a well label.", call. = FALSE)
+    }
+    if (length(start_position) != 1) {
+      stop("`start_position` must be a single well label or position.", call. = FALSE)
+    }
+    start_position <- resolve_start(start_position, size, fill_wise)
   }
 
   reactions_vector <- rxn_df[[reaction_col_name]]

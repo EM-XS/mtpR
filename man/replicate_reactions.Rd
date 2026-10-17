@@ -39,7 +39,9 @@ synonym.)}
 
 \item{intra_spacing}{The numeric distance between replicates within a set.}
 
-\item{start_position}{The starting numeric position for the first entry.}
+\item{start_position}{The starting position for the first entry: a position
+number, or a well label such as `"B01"` (then `plate`, or `reserved` from
+[place_controls()], is needed, and `fill_wise` sets how it is numbered).}
 
 \item{pattern}{`"grouped"`, `"dealt"`, `"scattered"` or `"quadrants"` (see
 Details). Also `"Together"` and `"EveryOther"`.}

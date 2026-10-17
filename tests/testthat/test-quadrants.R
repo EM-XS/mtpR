@@ -228,3 +228,33 @@ test_that("controls_spread errors when it cannot be done on one plate", {
                              seed = 1, plate = 96, controls_spread = 4)
   expect_equal(sum(attr(out, "plate_map")$Role == "reaction"), 20)
 })
+
+test_that("start_position accepts a well label for every pattern", {
+  for (pat in c("grouped", "dealt", "scattered")) {
+    a <- replicate_reactions(rx4, "rxn", 2, pattern = pat, seed = 1, plate = 96,
+                             start_position = "B01")
+    b <- replicate_reactions(rx4, "rxn", 2, pattern = pat, seed = 1, start_position = 13)
+    expect_equal(a$position, b$position)
+  }
+  # label follows fill_wise: B01 is position 2 column-wise
+  a <- replicate_reactions(rx4, "rxn", 2, pattern = "grouped", plate = 96,
+                           start_position = "b01", fill_wise = "col")
+  expect_equal(min(a$position), 2)
+  # plate comes from reserved when it is a place_controls() plate
+  ctl <- place_controls(96, wells = "H12")
+  a <- replicate_reactions(rx4, "rxn", 2, pattern = "grouped", reserved = ctl,
+                           start_position = "A03")
+  expect_equal(min(a$position), 3)
+  expect_error(replicate_reactions(rx4, "rxn", 2, pattern = "grouped", start_position = "A01"),
+               "plate")
+  expect_message(
+    out <- replicate_reactions(rx4, "rxn", 2, pattern = "quadrants", plate = 96,
+                               start_position = "A02"),
+    "moved start from A02 to A03"
+  )
+  expect_equal(wells(out)[out$rxn == 1], c("A03", "A04"))
+  expect_message(
+    replicate_reactions(rx4, "rxn", 2, pattern = "quadrants", plate = 96, start_position = "A03"),
+    NA
+  )
+})
