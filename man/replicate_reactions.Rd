@@ -17,7 +17,9 @@ replicate_reactions(
   replicates = NULL,
   reserved = NULL,
   plate = NULL,
-  fill_wise = "row"
+  fill_wise = "row",
+  controls_spread = NULL,
+  controls_name = "control"
 )
 }
 \arguments{
@@ -37,10 +39,12 @@ synonym.)}
 
 \item{intra_spacing}{The numeric distance between replicates within a set.}
 
-\item{start_position}{The starting numeric position for the first entry.}
+\item{start_position}{The starting position for the first entry: a position
+number, or a well label such as `"B01"` (then `plate`, or `reserved` from
+[place_controls()], is needed, and `fill_wise` sets how it is numbered).}
 
-\item{pattern}{`"grouped"`, `"dealt"` or `"scattered"` (see Details). Also
-`"Together"` and `"EveryOther"`.}
+\item{pattern}{`"grouped"`, `"dealt"`, `"scattered"` or `"quadrants"` (see
+Details). Also `"Together"` and `"EveryOther"`.}
 
 \item{seed}{Random seed for `"scattered"`. If `NULL` one is drawn; either
 way the seed used is stored in `attr(result, "seed")`.}
@@ -51,15 +55,26 @@ way the seed used is stored in `attr(result, "seed")`.}
 vector of well labels (e.g. `c("A01", "H12")`) or a vector of position
 numbers on one plate. `NULL` (default) reserves nothing.}
 
-\item{plate}{Plate size. Needed when `reserved` is a vector; read from
-`reserved` when it comes from [place_controls()].}
+\item{plate}{Plate size. Needed when `reserved` is a vector, and for
+`pattern = "quadrants"` and `controls_spread`; read from `reserved` when it
+comes from [place_controls()].}
 
 \item{fill_wise}{`"row"` or `"col"`: the direction positions run along the
-plate. Only used to turn reserved well labels into positions.}
+plate. Used to turn reserved well labels into positions, and to lay out
+`pattern = "quadrants"`.}
+
+\item{controls_spread}{Number of control wells to spread evenly among the
+reactions (see the section above). `NULL` (default) adds none.}
+
+\item{controls_name}{Name of these controls in the `Control` column of
+`attr(result, "plate_map")`.}
 }
 \value{
-A data frame with the columns 'reaction', 'replicate', and 'position'.
+A data frame with the columns 'reaction', 'replicate', and 'position'
+        (plus 'Quadrant' for `pattern = "quadrants"`).
         Each row corresponds to a reaction replicate with a unique assigned position.
+        With `controls_spread`, `attr(, "plate_map")` is the plate with the
+        controls and the reaction wells marked.
 }
 \description{
 Takes a data frame of reactions and a number of replicates, and assigns a
@@ -77,6 +92,7 @@ replicates the order along the plate is:
   `intra_spacing` from one round to the next.
 * `"scattered"`: replicates and reactions in random order over the same
   run of positions (spaced `inter_spacing` apart). Reproducible with `seed`.
+* `"quadrants"`: see the section below.
 
 The older `priority` argument still works: `"Reaction"` is `"grouped"` and
 `"Replicate"` is `"dealt"`, with identical positions. `pattern` also accepts
@@ -91,12 +107,66 @@ free wells, and the layout flows around controls and onto the next plate).
 The reserved wells repeat on every plate.
 }
 
+\section{Quadrants}{
+
+`pattern = "quadrants"` tiles the plate into 2x2 squares on a fixed grid from
+A01 (rows A-B, C-D, ...; columns 1-2, 3-4, ...). Inside a square the
+positions are numbered
+
+```
+1 2
+3 4
+```
+
+Reaction `i` takes square `i` and replicate `k` goes in position `k` (see
+[well_quadrant()]), so the replicates of every reaction sit in quadrants 1, 2,
+3 and 4 of the plate. This needs a plate with an even number of rows and
+columns (24, 48, 96, 384, 1536) and a known plate size: give `plate`, or
+`reserved` from [place_controls()].
+
+* Squares are filled in `fill_wise` order: `"row"` goes across the rows of
+  squares, `"col"` down the columns of squares.
+* With fewer than 4 replicates the unused positions of the square stay empty
+  (replicate `k` always sits in quadrant `k`).
+* With more than 4, the reaction takes further squares: replicates 5 to 8 go
+  in the next square, positions 1 to 4, and so on. A reaction with 6
+  replicates takes 2 squares, and positions 3 and 4 of the second are empty.
+  Different replicate counts per reaction work as for the other patterns.
+* The squares sit on the fixed grid. If `start_position` is not the top-left
+  well of a square (odd row and odd column) the start moves forward to the next
+  square's top-left well, and a message says so.
+* `inter_spacing` counts whole squares: 2 leaves one empty square between
+  reactions. `intra_spacing` does not apply (replicates have fixed
+  positions); a value other than 1 is ignored with a warning.
+* A square that contains any reserved well is skipped whole, so replicate
+  `k` stays in quadrant `k`. The squares left over by a reserved well are not used.
+* The output has a `Quadrant` column (1 to 4).
+* `position` runs in `fill_wise` order, like for the other patterns, so convert
+  it with `convert_well(position, "to_well", plate, wise = fill_wise)`.
+}
+
+\section{Spreading controls among reactions}{
+
+`controls_spread = n` reserves `n` extra wells for controls, spread evenly
+among the reactions, and lays out the reactions around them, all in one call.
+The block of free wells from `start_position` that the layout covers (the
+reaction wells and any gaps from the spacing) gets the controls as described
+for `method = "spread"` in [place_controls()]: with 8 controls and 40 reaction
+wells there is a control after every 5th reaction. Controls already in
+`reserved` are kept and are not counted as free wells. Everything must fit on
+the first plate (the controls would otherwise repeat on every plate); if it
+does not, call [place_controls()] yourself and pass it as `reserved`. The
+plate map with the controls and the reactions is returned as
+`attr(result, "plate_map")` (draw it with [plot_plate()]). Not available for
+`pattern = "quadrants"`.
+}
+
 \examples{
 data <- data.frame(rxn = 1:3)
-data <- replicate_reactions(data, "rxn", num_replicates = 3, priority = "Reaction",
-                            inter_spacing = 10, intra_spacing = 1, start_position = 1)
-data <- replicate_reactions(data, "rxn", num_replicates = 3, priority = "Replicate",
-                            inter_spacing = 5, intra_spacing = 1, start_position = 1)
+grouped <- replicate_reactions(data, "rxn", num_replicates = 3, priority = "Reaction",
+                                inter_spacing = 10, intra_spacing = 1, start_position = 1)
+dealt <- replicate_reactions(data, "rxn", num_replicates = 3, priority = "Replicate",
+                             inter_spacing = 5, intra_spacing = 1, start_position = 1)
 
 rxns <- data.frame(rxn = 1:3, n = c(2, 3, 1))
 replicate_reactions(rxns, "rxn", num_replicates = "n", pattern = "grouped")
@@ -105,5 +175,15 @@ replicate_reactions(rxns, "rxn", num_replicates = 3, pattern = "scattered", seed
 # Keep the four corners of a 96-well plate free
 corners <- place_controls(96, wells = c("A01", "A12", "H01", "H12"))
 replicate_reactions(rxns, "rxn", 3, pattern = "grouped", reserved = corners)
+
+# 8 controls spread among 40 reactions: a control after every 5th reaction
+out <- replicate_reactions(data.frame(rxn = 1:40), "rxn", 1, pattern = "grouped",
+                           plate = 96, controls_spread = 8)
+table(attr(out, "plate_map")$Role)
+
+# Replicate k of each reaction sits in quadrant k of a 2x2 square
+q <- replicate_reactions(rxns, "rxn", 3, pattern = "quadrants", plate = 96)
+q$Well <- convert_well(q$position, "to_well", plate = 96)
+q[, c("rxn", "replicate", "Quadrant", "Well")]
 
 }

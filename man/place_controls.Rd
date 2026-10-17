@@ -6,12 +6,17 @@
 \usage{
 place_controls(
   plate = 96,
-  method = c("fixed", "edge", "every", "random"),
+  method = c("fixed", "lines", "edge", "spread", "random", "quadrant", "every"),
   wells = NULL,
+  lines = NULL,
   every = NULL,
   by = c("column", "row"),
   offset = 1,
+  depth = 1,
   n = NULL,
+  among = NULL,
+  start = 1,
+  quadrant = NULL,
   seed = NULL,
   name = "control",
   wise = "row"
@@ -21,17 +26,31 @@ place_controls(
 \item{plate}{Plate size (see [platesize_check()]), or the result of an
 earlier `place_controls()` call to add more controls to.}
 
-\item{method}{`"fixed"`, `"edge"`, `"every"` or `"random"`.}
+\item{method}{`"fixed"`, `"lines"`, `"edge"`, `"spread"`, `"random"`,
+`"quadrant"` or (deprecated) `"every"`.}
 
-\item{wells}{Well labels for `method = "fixed"`.}
+\item{wells}{Well labels and ranges for `method = "fixed"`.}
+
+\item{lines}{Columns (or rows) for `method = "lines"`: numbers, or row letters
+when `by = "row"`.}
 
 \item{every}{Spacing for `method = "every"`: 2 reserves every second column.}
 
-\item{by}{`"column"` or `"row"`, for `method = "every"`.}
+\item{by}{`"column"` or `"row"`, for `method = "lines"` and `"every"`.}
 
 \item{offset}{First column (row) reserved by `method = "every"`.}
 
-\item{n}{Number of wells for `method = "random"`.}
+\item{depth}{Number of rings for `method = "edge"` (1 = outermost ring only).}
+
+\item{n}{Number of wells for `method = "spread"` and `"random"`.}
+
+\item{among}{For `method = "spread"`: the number of reaction wells the
+controls are spread among. `NULL` spreads over the whole plate from `start`.}
+
+\item{start}{For `method = "spread"`: the well (label or position number in
+fill order) where the block starts. Default: the first well.}
+
+\item{quadrant}{Quadrant(s), 1 to 4, for `method = "quadrant"`.}
 
 \item{seed}{Random seed for `method = "random"`. If `NULL` one is drawn; the
 seed used is stored in `attr(result, "seed")`.}
@@ -39,7 +58,8 @@ seed used is stored in `attr(result, "seed")`.}
 \item{name}{Name of the control, stored in the `Control` column. One value,
 or one per well for `method = "fixed"`.}
 
-\item{wise}{`"row"` or `"col"`: the direction `Well.Index` runs along the plate.}
+\item{wise}{`"row"` or `"col"`: the direction `Well.Index` runs along the
+plate, which is also the fill direction for `method = "spread"`.}
 }
 \value{
 A data frame of class `mtpr_plate` with one row per well and the
@@ -54,20 +74,58 @@ reserved wells and `"empty"` for the rest. Pass it to
 controls, then use [plate_roles()] to mark the wells that reactions took.
 }
 \details{
-Choose where the controls go with `method`:
+A count (`n`) is always a number of wells, and the place is given
+separately. Choose where the controls go with `method`:
 
-* `"fixed"`: the wells listed in `wells`, e.g. `c("A01", "H12")`.
-* `"edge"`: every well on the outer ring of the plate.
-* `"every"`: every `every`-th column (or row, with `by = "row"`), starting at
-  column (row) `offset`. All wells of the chosen columns are reserved.
+* `"fixed"`: the wells listed in `wells`. Single wells (`"A01"` or `"A1"`)
+  and rectangular ranges (`"A01:H01"`, `"A01:B12"`) can be mixed.
+* `"lines"`: whole columns (or rows, with `by = "row"`), e.g.
+  `lines = c(1, 24)`. Rows can be given as letters (`c("A", "P")`) or numbers.
+* `"edge"`: the outer ring of the plate; `depth = 2` reserves the outer two
+  rings, and so on.
+* `"spread"`: `n` wells spread evenly (see below).
 * `"random"`: `n` wells drawn at random; the same `seed` gives the same wells.
+* `"quadrant"`: every well in quadrant(s) `quadrant` (1-4) of the 2x2
+  squares that tile the plate; see [well_quadrant()]. Several quadrants can
+  be given.
+* `"every"`: deprecated. Use `"lines"` for whole columns or rows, or
+  `"spread"` for `n` wells spread out.
 
-Calls can be chained: give an earlier result as `plate` to reserve more wells.
+Calls can be chained: give an earlier result as `plate` to reserve more
+wells. If a later call takes a well that an earlier call already reserved,
+a warning says so and the later call wins (its `name` is kept).
 }
+\section{Spreading controls among reactions}{
+
+`"spread"` puts `n` controls at evenly spaced places among the reactions, in
+fill order. Take the block of `n + among` free wells that starts at `start`
+(free means not already a control; the plate is read in the direction `wise`).
+Control number `k` (1 to `n`) is the one that follows the
+`floor(k * among / n)`-th reaction. So 8 controls among 40 reactions fall
+after every 5th reaction, and the block ends on a control:
+
+```
+R R R R R C R R R R R C ...   (5 reactions, then a control)
+```
+
+With `among = NULL`, the controls are spread over all free wells from `start`
+to the end of the plate (default: the whole plate). To place controls among
+reactions in one go, use `controls_spread` in [replicate_reactions()], which
+fills in `among` and `start` for you.
+}
+
 \examples{
 place_controls(96, wells = c("A01", "A12", "H01", "H12"))
+place_controls(96, "fixed", wells = c("A01:H01", "A12"))
 edge <- place_controls(96, "edge", name = "buffer")
 table(edge$Role)
-place_controls(384, "every", every = 6, by = "column")
+place_controls(384, "edge", depth = 2)
+place_controls(384, "lines", lines = c(1, 24), by = "column")
+place_controls(96, "lines", lines = c("A", "H"), by = "row")
+place_controls(384, "quadrant", quadrant = 4)
 place_controls(96, "random", n = 8, seed = 42)
+
+# 8 controls among 40 reactions: one after every 5th reaction
+ctl <- place_controls(96, "spread", n = 8, among = 40)
+ctl$Well[ctl$Role == "control"]
 }
