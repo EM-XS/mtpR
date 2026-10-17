@@ -115,10 +115,10 @@
 #'
 #' @examples
 #' data <- data.frame(rxn = 1:3)
-#' data <- replicate_reactions(data, "rxn", num_replicates = 3, priority = "Reaction",
-#'                             inter_spacing = 10, intra_spacing = 1, start_position = 1)
-#' data <- replicate_reactions(data, "rxn", num_replicates = 3, priority = "Replicate",
-#'                             inter_spacing = 5, intra_spacing = 1, start_position = 1)
+#' grouped <- replicate_reactions(data, "rxn", num_replicates = 3, priority = "Reaction",
+#'                                 inter_spacing = 10, intra_spacing = 1, start_position = 1)
+#' dealt <- replicate_reactions(data, "rxn", num_replicates = 3, priority = "Replicate",
+#'                              inter_spacing = 5, intra_spacing = 1, start_position = 1)
 #'
 #' rxns <- data.frame(rxn = 1:3, n = c(2, 3, 1))
 #' replicate_reactions(rxns, "rxn", num_replicates = "n", pattern = "grouped")
