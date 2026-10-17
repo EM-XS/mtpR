@@ -85,5 +85,5 @@ square_of_position <- function(position, plate, wise) {
   sc <- (col - 1) %/% 2
   s <- if (wise == "row") sr * (info$colmax / 2) + sc else sc * (info$rowmax / 2) + sr
   list(square = plate_no * per_plate + s + 1,
-       top_left = row %% 2 == 1 && col %% 2 == 1)
+       top_left = row %% 2 == 1 & col %% 2 == 1)
 }
