@@ -19,6 +19,11 @@
 #'   [place_controls()].
 #' @param spacing Distance between neighbouring wells in the layout (1 = no gaps).
 #' @param plates Number of plates available.
+#' @param pattern Set to `"quadrants"` to count a quadrants layout (see
+#'   [replicate_reactions()]): each reaction takes `ceiling(replicates / 4)`
+#'   squares of 4 wells, `spacing` counts squares between reactions, and every
+#'   square that contains a control well is skipped. `controls` must then be a
+#'   plate from [place_controls()] (or 0) so the skipped squares can be counted.
 #' @param error If `TRUE` (default) stop with an explanation when the layout does
 #'   not fit; if `FALSE` return `FALSE` instead.
 #'
@@ -28,6 +33,8 @@
 #'   * `used`: reaction wells over all copies
 #'   * `reserved`: control wells over all plates used
 #'   * `left`: wells still free across the available plates (negative when short)
+#'   * `skipped`: (quadrants only) wells in squares skipped because they hold a
+#'     control, over all plates used; they count against `left`
 #'   * `plates_needed`
 #'   * `fits`: `TRUE`
 #'
@@ -35,6 +42,8 @@
 #' plate_capacity(100, replicates = 3, plate = 384, controls = 12)
 #' plate_capacity(100, replicates = 3, plate = 96, error = FALSE)
 #' plate_capacity(100, replicates = 3, copies = 2, plate = 384, plates = 2)
+#' # 20 reactions x 3 replicates in quadrants take 20 squares (80 wells)
+#' plate_capacity(20, replicates = 3, plate = 96, pattern = "quadrants")
 #' @export
 plate_capacity <- function(n_reactions = NULL,
                            replicates = 1,
@@ -43,7 +52,8 @@ plate_capacity <- function(n_reactions = NULL,
                            controls = 0,
                            spacing = 1,
                            plates = 1,
-                           error = TRUE) {
+                           error = TRUE,
+                           pattern = NULL) {
   info <- platesize_check(plate)
   per_plate <- info$rowmax * info$colmax
 
@@ -85,20 +95,50 @@ plate_capacity <- function(n_reactions = NULL,
   # slots needed on the plate: each reaction well plus the gaps between them
   slots_one_copy <- if (wells_one_copy > 0) (wells_one_copy - 1) * spacing + 1 else 0
 
+  skipped_per_plate <- 0
+  quadrants <- !is.null(pattern) && identical(tolower(pattern), "quadrants")
+  if (!is.null(pattern) && !quadrants) {
+    stop("`pattern` must be \"quadrants\" or NULL.", call. = FALSE)
+  }
+  if (quadrants) {
+    check_quadrant_plate(plate)
+    if (!inherits(controls, "mtpr_plate") && n_controls > 0) {
+      stop("With pattern = \"quadrants\", give `controls` as a plate from place_controls() ",
+           "so the squares they block can be counted.", call. = FALSE)
+    }
+    squares_per_plate <- per_plate / 4
+    blocked <- 0
+    if (inherits(controls, "mtpr_plate")) {
+      ctl <- controls[controls$Role == "control", , drop = FALSE]
+      sq <- paste((ctl$Row - 1) %/% 2, (ctl$Column - 1) %/% 2)
+      blocked <- length(unique(sq))
+      skipped_per_plate <- blocked * 4 - n_controls
+    }
+    free_per_plate <- squares_per_plate - blocked
+    reps <- if (length(replicates) == 1) rep(replicates, n_reactions) else replicates
+    # squares needed: those holding the replicates plus the gaps between reactions
+    slots_one_copy <- if (n_reactions > 0) sum(ceiling(reps / 4)) + (n_reactions - 1) * (spacing - 1) else 0
+  }
+
   fail <- function(msg) {
     if (isTRUE(error)) stop(msg, call. = FALSE)
     FALSE
   }
 
   if (free_per_plate < 1) {
-    return(fail(paste0("All ", per_plate, " wells of the plate are reserved for controls.")))
+    return(fail(if (quadrants) {
+      "Every square of the plate contains a control well."
+    } else {
+      paste0("All ", per_plate, " wells of the plate are reserved for controls.")
+    }))
   }
 
   plates_per_copy <- max(1, ceiling(slots_one_copy / free_per_plate))
   plates_needed <- plates_per_copy * copies
   used <- wells_one_copy * copies
   reserved <- n_controls * plates_needed
-  left <- plates * per_plate - used - reserved
+  skipped <- skipped_per_plate * plates_needed
+  left <- plates * per_plate - used - reserved - skipped
 
   if (plates_needed > plates) {
     msg <- paste0(
@@ -106,6 +146,7 @@ plate_capacity <- function(n_reactions = NULL,
       if (length(replicates) == 1) replicates else "per-reaction", " replicates",
       if (copies > 1) paste0(" x ", copies, " copies"),
       " needs ", used, " wells",
+      if (quadrants) paste0(" in ", slots_one_copy, " squares of 4 wells"),
       if (n_controls > 0) paste0(" plus ", n_controls, " control wells per plate"),
       ", which takes ", plates_needed, " plate", if (plates_needed > 1) "s",
       " of ", per_plate, " wells, but ", plates, if (plates == 1) " plate is" else " plates are",
@@ -114,7 +155,7 @@ plate_capacity <- function(n_reactions = NULL,
     return(fail(msg))
   }
 
-  list(
+  out <- list(
     plate = plate,
     wells_per_plate = per_plate,
     plates_available = plates,
@@ -124,4 +165,6 @@ plate_capacity <- function(n_reactions = NULL,
     plates_needed = plates_needed,
     fits = TRUE
   )
+  if (quadrants) out <- append(out, list(skipped = skipped), after = which(names(out) == "reserved"))
+  out
 }

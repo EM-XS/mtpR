@@ -12,7 +12,8 @@ plate_capacity(
   controls = 0,
   spacing = 1,
   plates = 1,
-  error = TRUE
+  error = TRUE,
+  pattern = NULL
 )
 }
 \arguments{
@@ -34,6 +35,12 @@ entry per reaction (then `n_reactions` may be left out).}
 
 \item{error}{If `TRUE` (default) stop with an explanation when the layout does
 not fit; if `FALSE` return `FALSE` instead.}
+
+\item{pattern}{Set to `"quadrants"` to count a quadrants layout (see
+[replicate_reactions()]): each reaction takes `ceiling(replicates / 4)`
+squares of 4 wells, `spacing` counts squares between reactions, and every
+square that contains a control well is skipped. `controls` must then be a
+plate from [place_controls()] (or 0) so the skipped squares can be counted.}
 }
 \value{
 `FALSE` if the layout does not fit and `error = FALSE`. Otherwise a
@@ -42,6 +49,8 @@ not fit; if `FALSE` return `FALSE` instead.}
   * `used`: reaction wells over all copies
   * `reserved`: control wells over all plates used
   * `left`: wells still free across the available plates (negative when short)
+  * `skipped`: (quadrants only) wells in squares skipped because they hold a
+    control, over all plates used; they count against `left`
   * `plates_needed`
   * `fits`: `TRUE`
 }
@@ -61,4 +70,6 @@ wells, which count as space needed but not as wells used.
 plate_capacity(100, replicates = 3, plate = 384, controls = 12)
 plate_capacity(100, replicates = 3, plate = 96, error = FALSE)
 plate_capacity(100, replicates = 3, copies = 2, plate = 384, plates = 2)
+# 20 reactions x 3 replicates in quadrants take 20 squares (80 wells)
+plate_capacity(20, replicates = 3, plate = 96, pattern = "quadrants")
 }

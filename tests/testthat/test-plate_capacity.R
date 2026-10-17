@@ -43,3 +43,38 @@ test_that("bad input errors", {
   expect_error(plate_capacity(10, 1, plate = 100), "Unsupported")
   expect_error(plate_capacity(10, 1, plate = 6, controls = 6), "reserved")
 })
+
+test_that("plate_capacity counts squares for quadrants", {
+  cap <- plate_capacity(20, replicates = 3, plate = 96, pattern = "quadrants")
+  expect_equal(c(cap$used, cap$skipped, cap$left, cap$plates_needed), c(60, 0, 36, 1))
+  # 25 reactions x 4 replicates need 25 squares > 24 per plate
+  expect_false(plate_capacity(25, 4, plate = 96, pattern = "quadrants", error = FALSE))
+  cap <- plate_capacity(25, 4, plate = 96, pattern = "quadrants", plates = 2)
+  expect_equal(cap$plates_needed, 2)
+  # per-reaction counts: 1 + 2 + 1 squares
+  cap <- plate_capacity(replicates = c(1, 6, 2), plate = 96, pattern = "quadrants")
+  expect_equal(cap$used, 9)
+  # spacing counts squares: 24 reactions at spacing 2 need 47 squares
+  expect_false(plate_capacity(24, 1, plate = 96, pattern = "quadrants", spacing = 2, error = FALSE))
+  expect_true(plate_capacity(12, 1, plate = 96, pattern = "quadrants", spacing = 2)$fits)
+  expect_error(plate_capacity(30, 4, plate = 96, pattern = "quadrants"), "squares")
+})
+
+test_that("plate_capacity skips squares that hold controls", {
+  ctl <- place_controls(96, wells = c("A03", "A04", "D12"))  # two squares blocked
+  cap <- plate_capacity(22, 4, plate = 96, controls = ctl, pattern = "quadrants")
+  expect_equal(cap$plates_needed, 1)
+  expect_equal(cap$reserved, 3)
+  expect_equal(cap$skipped, 2 * 4 - 3)
+  expect_equal(cap$left, 96 - 88 - 3 - 5)
+  # one square too many for the 22 free squares
+  expect_false(plate_capacity(23, 4, plate = 96, controls = ctl, pattern = "quadrants", error = FALSE))
+  expect_error(plate_capacity(5, 4, plate = 96, controls = 3, pattern = "quadrants"), "place_controls")
+  expect_error(plate_capacity(5, 4, plate = 96, controls = place_controls(96, "quadrant", quadrant = 1),
+                              pattern = "quadrants"), "Every square")
+  # capacity agrees with what replicate_reactions does
+  out <- replicate_reactions(data.frame(rxn = 1:22), "rxn", 4, pattern = "quadrants", reserved = ctl)
+  expect_equal(max(out$position), 96)
+  expect_gt(max(replicate_reactions(data.frame(rxn = 1:23), "rxn", 4, pattern = "quadrants",
+                                    reserved = ctl)$position), 96)
+})
