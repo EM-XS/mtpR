@@ -1,7 +1,7 @@
 Package: mtpR
 Type: Package
 Title: Microtiter Plate Layout and Data Tools
-Version: 0.1.0
+Version: 0.2.0
 Authors@R:
     person("Emily", email = "ejpmohr@gmail.com", role = c("aut", "cre"))
 Description: A small toolkit for designing and reading microtiter plate
@@ -22,6 +22,8 @@ Imports:
     tidyr
 Suggests:
     ggiraph,
+    htmltools,
+    htmlwidgets,
     testthat (>= 3.0.0)
 RoxygenNote: 7.3.2
 Config/testthat/edition: 3

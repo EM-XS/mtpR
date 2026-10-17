@@ -24,7 +24,8 @@ plot_plate(
   highlight = NULL,
   empty_fill = "grey93",
   empty_colour = "grey80",
-  interactive = FALSE
+  interactive = FALSE,
+  tooltip = NULL
 )
 }
 \arguments{
@@ -68,11 +69,21 @@ sequential scale and everything else with discrete colours; use
 
 \item{empty_fill, empty_colour}{Fill and outline of wells without data.}
 
-\item{interactive}{If `TRUE`, return a 'ggiraph' object where each well has
-`data_id` set to its well label and a tooltip. Needs the ggiraph package.}
+\item{interactive}{`FALSE` (default) returns a plain ggplot. `TRUE` returns a
+'ggiraph' girafe object where each well has `data_id` set to its well label
+and a tooltip. `"ggplot"` returns the interactive ggplot before it is
+wrapped by `ggiraph::girafe()`, so you can add layers, change the tooltip
+or set your own girafe options. Both interactive modes need the ggiraph
+package.}
+
+\item{tooltip}{Optional name of a column whose values are used as the tooltip
+text when interactive (default: the well and the `fill` value). Ignored
+when not interactive.}
 }
 \value{
-A ggplot object, or a girafe object when `interactive = TRUE`.
+A ggplot object, or a girafe object when `interactive = TRUE`. With
+  `interactive = "ggplot"` the ggplot has interactive layers (the well tiles
+  use `ggiraph::geom_tile_interactive()`) and has not been through `girafe()`.
 }
 \description{
 Draws a plate map. By default every well is a tile that fills the panel,
@@ -84,4 +95,12 @@ d <- data.frame(well = convert_well(1:36, "to_well", plate = 96),
                 grp = rep(c("x", "y", "z"), 12), n = 1:36)
 plot_plate(d, fill = "grp", well_id = "well", plate = 96, label = "n")
 plot_plate(d, fill = "n", well_id = "well", plate = 96, highlight = c("A01", "A02"))
+
+\dontrun{
+# Custom tooltip, and the interactive ggplot before girafe() wraps it
+d$note <- paste("well", d$well, "holds", d$grp)
+plot_plate(d, "grp", "well", plate = 96, interactive = TRUE, tooltip = "note")
+g <- plot_plate(d, "grp", "well", plate = 96, interactive = "ggplot", tooltip = "note")
+ggiraph::girafe(ggobj = g)
+}
 }

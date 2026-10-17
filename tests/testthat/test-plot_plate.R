@@ -95,3 +95,38 @@ test_that("interactive = TRUE without ggiraph gives an informative error", {
   expect_error(plot_plate(plate96(), "grp", "well", plate = 96, interactive = TRUE),
                "ggiraph")
 })
+
+# --- tooltip and interactive = "ggplot" -----------------------------------
+
+test_that("tooltip column becomes the interactive tooltip text", {
+  skip_if_not_installed("ggiraph"); skip_if_not_installed("htmltools")
+  d <- plate96(6)
+  d$note <- paste("note for", d$well)
+  g <- plot_plate(d, "grp", "well", plate = 96, interactive = TRUE, tooltip = "note")
+  expect_s3_class(g, "girafe")
+  html <- as.character(htmltools::renderTags(g)$html)
+  expect_match(html, "note for A01", fixed = TRUE)
+  # default tooltip is unchanged
+  g0 <- plot_plate(d, "grp", "well", plate = 96, interactive = TRUE)
+  expect_match(as.character(htmltools::renderTags(g0)$html), "A01: x", fixed = TRUE)
+})
+
+test_that("interactive = \"ggplot\" returns the interactive ggplot, not a girafe", {
+  skip_if_not_installed("ggiraph"); skip_if_not_installed("htmltools")
+  d <- plate96(6)
+  p <- plot_plate(d, "grp", "well", plate = 96, interactive = "ggplot")
+  expect_s3_class(p, "ggplot")
+  expect_false(inherits(p, "girafe"))
+  expect_true(any(vapply(p$layers, function(l) inherits(l$geom, "GeomInteractiveTile"), TRUE)))
+  expect_s3_class(ggiraph::girafe(ggobj = p), "girafe")
+})
+
+test_that("tooltip and interactive arguments are validated", {
+  d <- plate96(6)
+  expect_error(plot_plate(d, "grp", "well", plate = 96, tooltip = "nope"), "tooltip")
+  expect_error(plot_plate(d, "grp", "well", plate = 96, interactive = "yes"), "interactive")
+  # tooltip is ignored (but harmless) when static
+  expect_s3_class(plot_plate(d, "grp", "well", plate = 96, tooltip = "val"), "ggplot")
+  expect_false(any(vapply(plot_plate(d, "grp", "well", plate = 96)$layers,
+                          function(l) inherits(l$geom, "GeomInteractiveTile"), TRUE)))
+})
