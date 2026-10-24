@@ -7,7 +7,7 @@ facet_labeller_data <- function() {
   )
 }
 
-test_that("labeller defaults to label_both for the facet strips", {
+test_that("the default labeller keeps the old strips", {
   p <- plot_plate(facet_labeller_data(), fill = "grp", well_id = "well",
                   facet_rows = "pl", facet_cols = "copy", plate = 96)
   expect_identical(p$facet$params$labeller, ggplot2::label_both)
@@ -34,4 +34,12 @@ test_that("labeller reaches every facet branch", {
   lay <- ggplot2::ggplot_build(both)$layout$layout
   expect_equal(unique(lab(lay[, "copy", drop = FALSE])[[1]]), c("Copy 1", "Copy 2"))
   expect_equal(unique(lab(lay[, "pl", drop = FALSE])[[1]]), c("Plate 1", "Plate 2"))
+})
+
+test_that("the default labeller keeps bare values for a single facet", {
+  p <- plot_plate(facet_labeller_data(), fill = "grp", well_id = "well",
+                  facet_cols = "copy", plate = 96)
+  lay <- ggplot2::ggplot_build(p)$layout$layout
+  out <- p$facet$params$labeller(lay[, "copy", drop = FALSE])
+  expect_equal(out[[1]], c("1", "2"))
 })

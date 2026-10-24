@@ -10,7 +10,7 @@ plot_plate(
   well_id,
   facet_rows = NULL,
   facet_cols = NULL,
-  labeller = ggplot2::label_both,
+  labeller = NULL,
   plate = 384,
   size = 5,
   shape = 22,
@@ -41,8 +41,9 @@ plot_plate(
 \item{facet_cols}{The column name of the character column selected for the column facet}
 
 \item{labeller}{Labeller for the facet strips, passed to \code{ggplot2::facet_grid()}.
-The default, \code{ggplot2::label_both}, prints \code{column: value}; use e.g.
-\code{ggplot2::label_value} or \code{ggplot2::as_labeller()} for custom strip text.}
+\code{NULL} (the default) keeps the old strips: \code{column: value} when
+facetting on rows and columns, the bare value when facetting on one. Use e.g.
+\code{ggplot2::as_labeller()} for custom strip text.}
 
 \item{plate}{The size of the plate}
 
