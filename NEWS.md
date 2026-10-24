@@ -1,3 +1,10 @@
+# mtpR 0.3.1
+
+* `plot_plate()` gains a `labeller` argument for the facet strips. The default
+  (`ggplot2::label_both`) is used for every facet layout, so a plate map facetted
+  on one variable now also prints `column: value` strips; pass
+  `labeller = ggplot2::label_value` for the bare value.
+
 # mtpR 0.3.0
 
 * `place_controls()` has new methods. `"lines"` reserves whole columns or rows

@@ -1,7 +1,7 @@
 Package: mtpR
 Type: Package
 Title: Microtiter Plate Layout and Data Tools
-Version: 0.3.0
+Version: 0.3.1
 Authors@R:
     person("Emily", email = "ejpmohr@gmail.com", role = c("aut", "cre"))
 Description: A small toolkit for designing and reading microtiter plate

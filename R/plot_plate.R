@@ -9,6 +9,9 @@
 #' @param well_id The column name of the character column of well locations
 #' @param facet_rows The column name of the character column selected for the row facet
 #' @param facet_cols The column name of the character column selected for the column facet
+#' @param labeller Labeller for the facet strips, passed to \code{ggplot2::facet_grid()}.
+#'   The default, \code{ggplot2::label_both}, prints \code{column: value}; use e.g.
+#'   \code{ggplot2::label_value} or \code{ggplot2::as_labeller()} for custom strip text.
 #' @param plate The size of the plate
 #' @param size The size of the plotted data on the plate (`style = "points"` only)
 #' @param shape The shape of each plotted data point on the plate (`style = "points"` only)
@@ -60,6 +63,7 @@ plot_plate <- function(data,
                             well_id,
                             facet_rows = NULL,
                             facet_cols = NULL,
+                            labeller = ggplot2::label_both,
                             plate = 384,
                             size = 5,
                             shape = 22,
@@ -129,12 +133,12 @@ plot_plate <- function(data,
   # Optional faceting
   if (!is.null(facet_rows)) {
     if (!is.null(facet_cols)) {
-      p <- p + ggplot2::facet_grid(rows = ggplot2::vars(.data[[facet_rows]]), cols = ggplot2::vars(.data[[facet_cols]]), labeller = ggplot2::label_both)
+      p <- p + ggplot2::facet_grid(rows = ggplot2::vars(.data[[facet_rows]]), cols = ggplot2::vars(.data[[facet_cols]]), labeller = labeller)
     } else {
-      p <- p + ggplot2::facet_grid(rows = ggplot2::vars(.data[[facet_rows]]))
+      p <- p + ggplot2::facet_grid(rows = ggplot2::vars(.data[[facet_rows]]), labeller = labeller)
     }
   } else if (!is.null(facet_cols)) {
-    p <- p + ggplot2::facet_grid(cols = ggplot2::vars(.data[[facet_cols]]))
+    p <- p + ggplot2::facet_grid(cols = ggplot2::vars(.data[[facet_cols]]), labeller = labeller)
   }
 
   if (interactive && !as_ggplot) {
