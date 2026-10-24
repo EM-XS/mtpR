@@ -1,3 +1,9 @@
+# mtpR 0.3.1
+
+* `plot_plate()` gains a `labeller` argument for the facet strips. The default,
+  `NULL`, keeps the strips as before (`column: value` for a rows-and-columns grid,
+  the bare value for one facet).
+
 # mtpR 0.3.0
 
 * `place_controls()` has new methods. `"lines"` reserves whole columns or rows

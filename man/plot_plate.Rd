@@ -10,6 +10,7 @@ plot_plate(
   well_id,
   facet_rows = NULL,
   facet_cols = NULL,
+  labeller = NULL,
   plate = 384,
   size = 5,
   shape = 22,
@@ -38,6 +39,11 @@ plot_plate(
 \item{facet_rows}{The column name of the character column selected for the row facet}
 
 \item{facet_cols}{The column name of the character column selected for the column facet}
+
+\item{labeller}{Labeller for the facet strips, passed to \code{ggplot2::facet_grid()}.
+\code{NULL} (the default) keeps the old strips: \code{column: value} when
+facetting on rows and columns, the bare value when facetting on one. Use e.g.
+\code{ggplot2::as_labeller()} for custom strip text.}
 
 \item{plate}{The size of the plate}
 
