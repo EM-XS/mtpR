@@ -11,7 +11,7 @@ plot_plate(
   facet_rows = NULL,
   facet_cols = NULL,
   labeller = NULL,
-  plate = 384,
+  plate = 96,
   size = 5,
   shape = 22,
   na_fill = "white",
@@ -45,7 +45,7 @@ plot_plate(
 facetting on rows and columns, the bare value when facetting on one. Use e.g.
 \code{ggplot2::as_labeller()} for custom strip text.}
 
-\item{plate}{The size of the plate}
+\item{plate}{The size of the plate (see \code{\link[=platesize_check]{platesize_check()}}).}
 
 \item{size}{The size of the plotted data on the plate (\code{style = "points"} only)}
 

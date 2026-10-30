@@ -27,7 +27,7 @@ test_that("plate_designer_server builds a plate map on demand", {
     expect_equal(nrow(pm), 8 * 3 * 2)
     expect_setequal(
       names(pm),
-      c("reaction_count", "replicate", "position", "Plate.Index",
+      c("reaction_count", "replicate", "Well.Index", "Plate.Index",
         "Well.Index", "Well.Position", "PlateReplicate.Number", "Plate Name")
     )
     # regression: Plate Name must be plain character, not a glue object

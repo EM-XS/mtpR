@@ -144,7 +144,7 @@ plate_designer_server <- function(id) {
                 wise = input$fillwise, plate = dest_plate
               )
             ) |>
-            add_plates(well_index_column = "position", plate_size = dest_plate) |>
+            add_plates(well_index_column = "Well.Index", plate_size = dest_plate) |>
             dplyr::mutate(
               Well.Position = convert_well(
                 Well.Index, "to_well",

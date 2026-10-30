@@ -13,7 +13,7 @@
 #'   \code{NULL} (the default) keeps the old strips: \code{column: value} when
 #'   facetting on rows and columns, the bare value when facetting on one. Use e.g.
 #'   \code{ggplot2::as_labeller()} for custom strip text.
-#' @param plate The size of the plate
+#' @param plate The size of the plate (see [platesize_check()]).
 #' @param size The size of the plotted data on the plate (`style = "points"` only)
 #' @param shape The shape of each plotted data point on the plate (`style = "points"` only)
 #' @param na_fill Fill color for the plate (`style = "points"` only)
@@ -65,7 +65,7 @@ plot_plate <- function(data,
                             facet_rows = NULL,
                             facet_cols = NULL,
                             labeller = NULL,
-                            plate = 384,
+                            plate = 96,
                             size = 5,
                             shape = 22,
                             na_fill = "white",

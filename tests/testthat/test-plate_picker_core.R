@@ -58,7 +58,7 @@ test_that("sequence layouts match replicate_reactions()", {
                              start_position = g$start, plate = 96, fill_wise = g$wise,
                              reserved = reserved)
     r <- r[order(r$rxn, r$replicate), ]
-    expect_lte(max(r$position), 96)
+    expect_lte(max(r$Well.Index), 96)
     opts <- list(pattern = g$pattern, num_replicates = g$reps, inter_spacing = g$inter,
                  intra_spacing = g$intra, fill_wise = g$wise)
     wells <- js(as.list(c(g$start, reserved)))
@@ -68,7 +68,7 @@ test_that("sequence layouts match replicate_reactions()", {
        const p = core.sequenceLayout(4, o, i).placed;
        p.sort((a, b) => a.reaction - b.reaction || a.replicate - b.replicate);
        return p.map(x => x.position);", wells, js(opts)))
-    expect_equal(out, r$position, info = paste(g, collapse = " "))
+    expect_equal(out, r$Well.Index, info = paste(g, collapse = " "))
   }
 })
 
@@ -78,7 +78,7 @@ test_that("the R call the widget shows runs and gives the same wells", {
     return core.sequenceCall(['S2', 'S10'], {pattern: 'dealt', num_replicates: 2, inter_spacing: 1,
       intra_spacing: 2, fill_wise: 'col', start_position: 9, reserved: [1]}, i);")
   r <- eval(parse(text = call))
-  expect_equal(r$label[order(r$position)][1:2], c("S2", "S10"))
+  expect_equal(r$label[order(r$Well.Index)][1:2], c("S2", "S10"))
 })
 
 test_that("default colours match R", {

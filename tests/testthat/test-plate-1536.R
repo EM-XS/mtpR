@@ -59,7 +59,7 @@ test_that("a 1536 design round-trips through the layout pipeline", {
   d <- data.frame(rxn = 1:4) |>
     replicate_reactions("rxn", num_replicates = 2, priority = "Reaction",
                         inter_spacing = 1, intra_spacing = 1, start_position = 1) |>
-    add_plates("position", plate_size = 1536) |>
+    add_plates("Well.Index", plate_size = 1536) |>
     dplyr::mutate(well = convert_well(Well.Index, "to_well", plate = 1536))
   expect_equal(nrow(d), 8)
   expect_true(all(d$Plate.Index == 1))

@@ -23,7 +23,9 @@ replicate_reactions(
 )
 }
 \arguments{
-\item{rxn_df}{A df of reactions.}
+\item{rxn_df}{A df of reactions. Its other columns are carried over to every
+replicate of the reaction. It cannot have columns named \code{replicate} or
+\code{Well.Index} (or \code{Quadrant} for \code{pattern = "quadrants"}), which the result adds.}
 
 \item{reaction_col_name}{The column of unique reaction identifiers to be replicated.}
 
@@ -70,7 +72,7 @@ reactions (see the section above). \code{NULL} (default) adds none.}
 \code{attr(result, "plate_map")}.}
 }
 \value{
-A data frame with the columns 'reaction', 'replicate', and 'position'
+A data frame with the columns 'reaction', 'replicate', and 'Well.Index'
 (plus 'Quadrant' for \code{pattern = "quadrants"}).
 Each row corresponds to a reaction replicate with a unique assigned position.
 With \code{controls_spread}, \code{attr(, "plate_map")} is the plate with the
@@ -78,7 +80,10 @@ controls and the reaction wells marked.
 }
 \description{
 Takes a data frame of reactions and a number of replicates, and assigns a
-unique numeric position to every reaction replicate.
+unique numeric position to every reaction replicate, as the \code{Well.Index} column:
+the well's number in fill order, as in \code{\link[=place_controls]{place_controls()}} and \code{\link[=convert_well]{convert_well()}}.
+A layout that runs past one plate gets numbers above the plate size;
+\code{\link[=add_plates]{add_plates()}} splits those into \code{Plate.Index} and a \code{Well.Index} on each plate.
 }
 \details{
 The layout is chosen with \code{pattern}. For three reactions (1, 2, 3) and three
@@ -142,8 +147,8 @@ positions); a value other than 1 is ignored with a warning.
 \item A square that contains any reserved well is skipped whole, so replicate
 \code{k} stays in quadrant \code{k}. The squares left over by a reserved well are not used.
 \item The output has a \code{Quadrant} column (1 to 4).
-\item \code{position} runs in \code{fill_wise} order, like for the other patterns, so convert
-it with \code{convert_well(position, "to_well", plate, wise = fill_wise)}.
+\item \code{Well.Index} runs in \code{fill_wise} order, like for the other patterns, so convert
+it with \code{convert_well(Well.Index, "to_well", plate, wise = fill_wise)}.
 }
 }
 
@@ -185,7 +190,7 @@ table(attr(out, "plate_map")$Role)
 
 # Replicate k of each reaction sits in quadrant k of a 2x2 square
 q <- replicate_reactions(rxns, "rxn", 3, pattern = "quadrants", plate = 96)
-q$Well <- convert_well(q$position, "to_well", plate = 96)
+q$Well <- convert_well(q$Well.Index, "to_well", plate = 96)
 q[, c("rxn", "replicate", "Quadrant", "Well")]
 
 }

@@ -44,7 +44,7 @@ design <- data.frame(rxn = 1:8) |>
     inter_spacing = 2, intra_spacing = 1,
     start_position = "A01", plate = 96
   ) |>
-  add_plates("position", plate_size = 96) |>
+  add_plates("Well.Index", plate_size = 96) |>
   dplyr::mutate(well = convert_well(Well.Index, "to_well", plate = 96))
 
 plot_plate(design, fill = "rxn", well_id = "well", plate = 96)
@@ -65,7 +65,7 @@ plate_capacity(8, replicates = 3, plate = 96, controls = controls)
 
 design <- data.frame(rxn = 1:8) |>
   replicate_reactions("rxn", 3, pattern = "grouped", reserved = controls) |>
-  dplyr::mutate(well = convert_well(position, "to_well", plate = 96))
+  dplyr::mutate(well = convert_well(Well.Index, "to_well", plate = 96))
 
 plate_roles(controls, design, well_id = "well") |>
   plot_plate(fill = "Role", well_id = "Well", plate = 96)

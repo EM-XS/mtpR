@@ -63,8 +63,8 @@
 #' column is a finished layout with one row per well: every other column is a
 #' feature, and it replaces the painting. A file without one is a list of labels
 #' to paint with, with `label`, an optional `feature` and attributes. Columns that
-#' describe a layout rather than a well's contents, such as `replicate`, `position`
-#' and `Well.Index`, are ignored by default, and every column can be reassigned
+#' describe a layout rather than a well's contents, such as `replicate` and
+#' `Well.Index`, are ignored by default, and every column can be reassigned
 #' before loading. Well labels are read by the `"common"` rule of [clean_wells()].
 #'
 #' @section Colours:

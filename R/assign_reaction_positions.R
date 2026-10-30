@@ -1,7 +1,10 @@
 #' Replicate Reactions and Assign Unique Numeric Positions
 #'
 #' Takes a data frame of reactions and a number of replicates, and assigns a
-#' unique numeric position to every reaction replicate.
+#' unique numeric position to every reaction replicate, as the `Well.Index` column:
+#' the well's number in fill order, as in [place_controls()] and [convert_well()].
+#' A layout that runs past one plate gets numbers above the plate size;
+#' [add_plates()] splits those into `Plate.Index` and a `Well.Index` on each plate.
 #'
 #' The layout is chosen with `pattern`. For three reactions (1, 2, 3) and three
 #' replicates the order along the plate is:
@@ -61,8 +64,8 @@
 #' * A square that contains any reserved well is skipped whole, so replicate
 #'   `k` stays in quadrant `k`. The squares left over by a reserved well are not used.
 #' * The output has a `Quadrant` column (1 to 4).
-#' * `position` runs in `fill_wise` order, like for the other patterns, so convert
-#'   it with `convert_well(position, "to_well", plate, wise = fill_wise)`.
+#' * `Well.Index` runs in `fill_wise` order, like for the other patterns, so convert
+#'   it with `convert_well(Well.Index, "to_well", plate, wise = fill_wise)`.
 #'
 #' @section Spreading controls among reactions:
 #' `controls_spread = n` reserves `n` extra wells for controls, spread evenly
@@ -78,7 +81,9 @@
 #' `attr(result, "plate_map")` (draw it with [plot_plate()]). Not available for
 #' `pattern = "quadrants"`.
 #'
-#' @param rxn_df A df of reactions.
+#' @param rxn_df A df of reactions. Its other columns are carried over to every
+#'   replicate of the reaction. It cannot have columns named `replicate` or
+#'   `Well.Index` (or `Quadrant` for `pattern = "quadrants"`), which the result adds.
 #' @param reaction_col_name The column of unique reaction identifiers to be replicated.
 #' @param num_replicates The number of replicates. One number for all
 #'   reactions, a vector with one entry per row of `rxn_df`, or the name of a
@@ -110,7 +115,7 @@
 #' @param controls_name Name of these controls in the `Control` column of
 #'   `attr(result, "plate_map")`.
 #'
-#' @return A data frame with the columns 'reaction', 'replicate', and 'position'
+#' @return A data frame with the columns 'reaction', 'replicate', and 'Well.Index'
 #'         (plus 'Quadrant' for `pattern = "quadrants"`).
 #'         Each row corresponds to a reaction replicate with a unique assigned position.
 #'         With `controls_spread`, `attr(, "plate_map")` is the plate with the
@@ -138,7 +143,7 @@
 #'
 #' # Replicate k of each reaction sits in quadrant k of a 2x2 square
 #' q <- replicate_reactions(rxns, "rxn", 3, pattern = "quadrants", plate = 96)
-#' q$Well <- convert_well(q$position, "to_well", plate = 96)
+#' q$Well <- convert_well(q$Well.Index, "to_well", plate = 96)
 #' q[, c("rxn", "replicate", "Quadrant", "Well")]
 #'
 #' @export
@@ -165,6 +170,12 @@ replicate_reactions <- function(rxn_df,
 
   if (!reaction_col_name %in% names(rxn_df)) {
     stop("The specified reaction column does not exist in the data frame", call. = FALSE)
+  }
+  added <- c("replicate", "Well.Index", if (pattern == "quadrants") "Quadrant")
+  clash <- intersect(names(rxn_df), added)
+  if (length(clash)) {
+    stop("`rxn_df` has column(s) that the result adds: ",
+         paste(sprintf("`%s`", clash), collapse = ", "), ". Rename them first.", call. = FALSE)
   }
   if (!missing(num_replicates) && !is.null(replicates)) {
     stop("Give either `num_replicates` or `replicates`, not both.", call. = FALSE)
@@ -212,7 +223,7 @@ replicate_reactions <- function(rxn_df,
     }
     q <- layout_quadrants(n_rep, ridx, start_position, inter_spacing, intra_spacing,
                           reserved, plate, fill_wise)
-    df$position <- q$position
+    df$Well.Index <- q$position
     df$Quadrant <- q$quadrant
   } else {
     offsets <- switch(
@@ -229,21 +240,21 @@ replicate_reactions <- function(rxn_df,
                                        controls_name, start_position, offsets)
     }
     if (is.null(reserved)) {
-      df$position <- start_position + offsets
+      df$Well.Index <- start_position + offsets
     } else {
       res <- reserved_positions(reserved, plate, fill_wise)
-      df$position <- flow_around_reserved(start_position, offsets,
+      df$Well.Index <- flow_around_reserved(start_position, offsets,
                                           res$positions, res$plate_size)
     }
     if (!is.null(controls_spread)) {
-      wells <- convert_well(df$position, "to_well", plate = res$plate_size, wise = fill_wise)
+      wells <- convert_well(df$Well.Index, "to_well", plate = res$plate_size, wise = fill_wise)
       plate_map <- plate_roles(reserved, wells)
     }
   }
 
   # Add the input df information
-  df <- dplyr::left_join(df, rxn_df, by = stats::setNames(reaction_col_name, "reaction"))
   names(df)[names(df) == "reaction"] <- reaction_col_name
+  df <- dplyr::left_join(df, rxn_df, by = reaction_col_name)
 
   if (!is.null(seed_used)) attr(df, "seed") <- seed_used
   attr(df, "pattern") <- pattern

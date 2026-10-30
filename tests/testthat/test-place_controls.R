@@ -61,7 +61,7 @@ test_that("placed reactions and controls together fill roles consistently", {
   ctl <- place_controls(96, wells = c("A01", "A12", "H01", "H12"))
   out <- replicate_reactions(data.frame(rxn = 1:20), "rxn", 3, pattern = "scattered",
                              seed = 2, reserved = ctl)
-  out$Well <- convert_well(out$position, "to_well", plate = 96)
+  out$Well <- convert_well(out$Well.Index, "to_well", plate = 96)
   p <- plate_roles(ctl, out, "Well")
   expect_equal(sum(p$Role == "reaction"), 60)
   expect_equal(sum(p$Role == "control"), 4)

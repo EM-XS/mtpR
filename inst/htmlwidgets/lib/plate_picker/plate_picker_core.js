@@ -275,7 +275,7 @@
   }
   // Column names used across mtpR: plate_picker exports, place_controls() and
   // plate_roles() (Well), design_plate() (Well.Position) and replicate_reactions()
-  // (replicate, position, which describe the layout, not a well's contents).
+  // (replicate, Well.Index, which describe the layout, not a well's contents).
   var WELL_NAMES = ['well', 'wellposition', 'wellid'];
   var LAYOUT_NAMES = ['row', 'column', 'wellindex', 'position', 'replicate', 'plateindex', 'quadrant'];
   var LABEL_NAMES = ['label', 'control', 'reaction', 'rxn'];
