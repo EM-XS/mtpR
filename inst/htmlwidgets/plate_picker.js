@@ -405,7 +405,7 @@
       }
     }
 
-    // ---- labels and groups -----------------------------------------------
+    // ---- features and labels ---------------------------------------------
     var editing = null;   // label index, or 'feature:' and its name, being edited
     function textInput(parent, name, value, onChange) {
       var lab = h('label', { 'class': 'mtpr-field' }, parent, name);

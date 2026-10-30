@@ -16,7 +16,8 @@ Tools for designing and reading **m**icro**t**iter **p**late layouts in R.
 - draw plate maps with `ggplot2` (`plot_plate()`), mark which wells hold reactions
   (`plate_roles()`), and draw and count picklist transfers between plates
   (`plot_plate_pair()`, `picklist_summary()`)
-- paint wells by hand in Shiny or an offline HTML file (`plate_picker()`)
+- paint wells by hand in Shiny or an offline HTML file, with several features per
+  well, and read the result back into R (`plate_picker()`, `read_plate_picker()`)
 - reshape plate-shaped tables into tidy long format (`read_plate()`)
 
 Supported plate sizes: 6, 12, 24, 48, 96, 384, 1536.
