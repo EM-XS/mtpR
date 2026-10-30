@@ -274,7 +274,7 @@
       var w = svg.getBoundingClientRect().width;
       if (!w) return;
       scale = w / viewW;
-      var cellPx = CELL * scale, fs = 11 / scale;
+      var cellPx = CELL * scale, fs = Math.min(11 / scale, (HDR_W - 8) / (rowW * 0.62));
       var cs = 1; while (cs * cellPx < 15 && cs < 16) cs *= 2;
       var rs = 1; while (rs * cellPx < 13 && rs < 16) rs *= 2;
       colHdrs.forEach(function (t, c) { t.setAttribute('font-size', fs); t.setAttribute('display', c % cs === 0 ? '' : 'none'); });
