@@ -147,3 +147,13 @@ test_that("one well labelled two ways gives a warning, but facets do not", {
     plot_plate(facetted, fill = "v", well_id = "well", plate = 96, facet_cols = "plate_id")
   )
 })
+
+test_that("plot_plate() defaults to a 96-well plate like the rest of the package", {
+  expect_equal(formals(plot_plate)$plate, formals(convert_well)$plate)
+  d <- data.frame(well = c("A01", "H12"), v = 1:2)
+  expect_no_warning(p <- plot_plate(d, fill = "v", well_id = "well"))
+  expect_equal(nrow(ggplot2::ggplot_build(p)$data[[1]]), 96)
+  expect_warning(plot_plate(data.frame(well = "P24", v = 1), fill = "v", well_id = "well"),
+                 "96-well plate")
+  expect_no_warning(plot_plate(data.frame(well = "P24", v = 1), fill = "v", well_id = "well", plate = 384))
+})

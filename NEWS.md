@@ -1,3 +1,25 @@
+# mtpR 0.4.5
+
+## Behaviour changes
+
+* `plot_plate()` now defaults to `plate = 96`, like the rest of the package. It used
+  to default to 384, so code that draws a 384-well plate without saying so needs
+  `plate = 384`. Wells that are not on a 96-well plate give the usual warning.
+* `replicate_reactions()` now returns its numbering as `Well.Index` instead of
+  `position`, the name `place_controls()` and `add_plates()` use for the same
+  thing. Code that reads `$position` needs updating, and
+  `add_plates("position", ...)` becomes `add_plates("Well.Index", ...)`, which
+  replaces `Well.Index` with the number on each plate. `start_position` keeps its
+  name.
+* `replicate_reactions()` stops when `rxn_df` has a column it adds to the result:
+  `replicate`, `Well.Index`, or `Quadrant` for `pattern = "quadrants"`. These used
+  to give names ending `.x` and `.y`, or two columns with one name.
+
+## Bug fixes
+
+* `replicate_reactions()` keeps a `reaction` column in `rxn_df` under its own name
+  when another column holds the reaction identifiers. It used to become `reaction.y`.
+
 # mtpR 0.4.4
 
 ## plate_picker(): several features per well

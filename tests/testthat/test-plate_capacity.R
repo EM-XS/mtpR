@@ -74,7 +74,7 @@ test_that("plate_capacity skips squares that hold controls", {
                               pattern = "quadrants"), "Every square")
   # capacity agrees with what replicate_reactions does
   out <- replicate_reactions(data.frame(rxn = 1:22), "rxn", 4, pattern = "quadrants", reserved = ctl)
-  expect_equal(max(out$position), 96)
+  expect_equal(max(out$Well.Index), 96)
   expect_gt(max(replicate_reactions(data.frame(rxn = 1:23), "rxn", 4, pattern = "quadrants",
-                                    reserved = ctl)$position), 96)
+                                    reserved = ctl)$Well.Index), 96)
 })
