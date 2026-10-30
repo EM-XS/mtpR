@@ -29,14 +29,14 @@ to_rows_columns <- function(wells, well_id) {
     stop("Column '", well_id, "' not found in wells.", call. = FALSE)
   }
 
-  if (!all(grepl("^[A-Za-z]{1,2}\\d+$", wells[[well_id]]))) {
+  # Extract and convert well IDs to indices
+  parsed <- parse_wells(wells[[well_id]])
+  if (anyNA(parsed$row)) {
     stop("All well IDs must be in the format of one or two letters followed by digits.", call. = FALSE)
   }
 
   row_labels <- plate_row_labels(length(LETTERS) + length(LETTERS)^2)
 
-  # Extract and convert well IDs to indices
-  parsed <- parse_wells(wells[[well_id]])
   wells <- dplyr::mutate(wells,
                          Row = as.numeric(match(parsed$row, row_labels)),
                          Column = parsed$col

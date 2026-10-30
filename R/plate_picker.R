@@ -266,7 +266,7 @@ plate_picker_value <- function(x) {
     stop("`well` and `label` must have the same length.", call. = FALSE)
   }
   if (length(well) == 0) return(picker_empty())
-  out <- data.frame(well = picker_pad_wells(well), label = label,
+  out <- data.frame(well = pad_wells(well), label = label,
                     stringsAsFactors = FALSE)
   out[picker_plate_order(out$well), , drop = FALSE] |> picker_rownames()
 }
@@ -452,22 +452,13 @@ picker_colours <- function(labels, colours) {
   stats::setNames(picker_hex(as.character(colours[labels]), "colours"), labels)
 }
 
-# "a1" -> "A01"; text that is not a well is returned unchanged.
-picker_pad_wells <- function(x) {
-  x <- toupper(trimws(as.character(x)))
-  m <- regmatches(x, regexec("^([A-Z]+)0*([0-9]+)$", x))
-  vapply(seq_along(x), function(i) {
-    if (length(m[[i]]) == 3) paste0(m[[i]][2], sprintf("%02d", as.integer(m[[i]][3]))) else x[i]
-  }, character(1))
-}
-
 # Wells normalised, and (when the plate is known) checked against it.
 picker_normalise_wells <- function(x, plate, what) {
   if (length(x) == 0) return(character())
   if (!is.character(x) || anyNA(x)) {
     stop("`", what, "` must be a character vector of wells.", call. = FALSE)
   }
-  w <- picker_pad_wells(x)
+  w <- pad_wells(x)
   bad <- !grepl("^[A-Z]+[0-9]{2,}$", w)
   if (!is.null(plate)) {
     info <- platesize_check(plate)
@@ -531,7 +522,7 @@ picker_normalise_value <- function(value, plate, labels, multiple, plain) {
 
 # Like picker_normalise_wells() but keeps duplicates and order.
 picker_normalise_wells_keep <- function(x, plate, what) {
-  w <- picker_pad_wells(x)
+  w <- pad_wells(x)
   picker_normalise_wells(unique(x), plate, what)
   w
 }

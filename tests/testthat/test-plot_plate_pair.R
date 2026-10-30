@@ -69,16 +69,16 @@ test_that("interactive pair builds a girafe with linked data_ids", {
   expect_equal(attr(g, "summary")$transfers, 7)
   html <- html_of(g)
   expect_match(html, "data-id")
-  expect_match(html, "s:Src1:A1", fixed = TRUE)
-  expect_match(html, "d:Assay:B3", fixed = TRUE)
-  expect_match(html, "l:Src1:A1>Assay:A1", fixed = TRUE)
+  expect_match(html, "s:Src1:A01", fixed = TRUE)
+  expect_match(html, "d:Assay:B03", fixed = TRUE)
+  expect_match(html, "l:Src1:A01>Assay:A01", fixed = TRUE)
   expect_match(html, "3 transfers, 100 nL", fixed = TRUE)
   rel <- g$jsHooks$render[[1]]$data
-  expect_setequal(unlist(rel[["s:Src1:A1"]]),
-                  c("d:Assay:A1", "d:Assay:A2", "d:Assay:A3", "l:Src1:A1>Assay:A1",
-                    "l:Src1:A1>Assay:A2", "l:Src1:A1>Assay:A3"))
-  expect_setequal(unlist(rel[["d:Assay:A1"]]),
-                  c("s:Src1:A1", "s:Src1:B1", "l:Src1:A1>Assay:A1", "l:Src1:B1>Assay:A1"))
+  expect_setequal(unlist(rel[["s:Src1:A01"]]),
+                  c("d:Assay:A01", "d:Assay:A02", "d:Assay:A03", "l:Src1:A01>Assay:A01",
+                    "l:Src1:A01>Assay:A02", "l:Src1:A01>Assay:A03"))
+  expect_setequal(unlist(rel[["d:Assay:A01"]]),
+                  c("s:Src1:A01", "s:Src1:B01", "l:Src1:A01>Assay:A01", "l:Src1:B01>Assay:A01"))
 })
 
 test_that("links modes", {
@@ -92,7 +92,7 @@ test_that("links modes", {
   p0 <- plot_plate_pair(pl, links = "all", link_curvature = 0)
   expect_true(any(vapply(p0$layers, function(l) inherits(l$geom, "GeomSegment"), TRUE)))
   # interactive: links exist but start invisible in "hover", none with "none"
-  expect_match(html_of(plot_plate_pair(pl, interactive = TRUE)), "l:Src1:A1>Assay:A1", fixed = TRUE)
+  expect_match(html_of(plot_plate_pair(pl, interactive = TRUE)), "l:Src1:A01>Assay:A01", fixed = TRUE)
   expect_false(grepl("data-id=.l:", html_of(plot_plate_pair(pl, links = "none", interactive = TRUE))))
   expect_true(grepl("data-id=.l:", html_of(plot_plate_pair(pl, interactive = TRUE))))
   expect_error(plot_plate_pair(pl, links = "sometimes"))
@@ -184,14 +184,14 @@ test_that("the same well on two plates gets distinct interactive ids", {
   skip_if_not_installed("ggiraph"); skip_if_not_installed("htmltools"); skip_if_not_installed("htmlwidgets")
   g <- plot_plate_pair(multi_picklist(), interactive = TRUE)
   html <- html_of(g)
-  expect_match(html, "s:Res:A1", fixed = TRUE)
-  expect_match(html, "s:Src:A1", fixed = TRUE)
+  expect_match(html, "s:Res:A01", fixed = TRUE)
+  expect_match(html, "s:Src:A01", fixed = TRUE)
   rel <- g$jsHooks$render[[1]]$data
-  expect_setequal(unlist(rel[["s:Res:A1"]]),
-                  c("d:Assay:A1", "d:Assay:A2", "l:Res:A1>Assay:A1", "l:Res:A1>Assay:A2"))
-  expect_setequal(unlist(rel[["s:Src:A1"]]),
-                  c("d:Assay:B1", "d:Assay:B2", "l:Src:A1>Assay:B1", "l:Src:A1>Assay:B2"))
-  expect_setequal(unlist(rel[["d:Assay:A1"]]), c("s:Res:A1", "l:Res:A1>Assay:A1"))
+  expect_setequal(unlist(rel[["s:Res:A01"]]),
+                  c("d:Assay:A01", "d:Assay:A02", "l:Res:A01>Assay:A01", "l:Res:A01>Assay:A02"))
+  expect_setequal(unlist(rel[["s:Src:A01"]]),
+                  c("d:Assay:B01", "d:Assay:B02", "l:Src:A01>Assay:B01", "l:Src:A01>Assay:B02"))
+  expect_setequal(unlist(rel[["d:Assay:A01"]]), c("s:Res:A01", "l:Res:A01>Assay:A01"))
 })
 
 test_that("picklist_summary has by_dest_plate", {

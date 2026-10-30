@@ -7,7 +7,8 @@
 convert_well(input, direction, plate = 96, wise = "row")
 }
 \arguments{
-\item{input}{A vector of well labels (as character) or numeric indices (as numeric) to be converted.}
+\item{input}{A vector of well labels (as character, read as in the \code{"common"}
+mode of \code{\link[=clean_wells]{clean_wells()}}) or numeric indices (as numeric) to be converted.}
 
 \item{direction}{Character; specifies the conversion direction, either "to_num" or "to_well".}
 

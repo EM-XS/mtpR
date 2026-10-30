@@ -117,6 +117,15 @@ plot_plate <- function(data,
   plotting_data <- to_rows_columns(data, well_id)
   plotting_data$.well <- as.character(plotting_data[[well_id]])
 
+  # Facets repeat wells on purpose; one well spelled two ways is a mistake.
+  spelled <- pad_wells(unique(plotting_data$.well))
+  if (anyDuplicated(spelled)) {
+    warning("Some wells are labelled in more than one way and are drawn on top of ",
+            "each other: ", paste(utils::head(unique(spelled[duplicated(spelled)]), 5),
+                                  collapse = ", "),
+            ". Use clean_wells() on the labels first.", call. = FALSE)
+  }
+
   off_plate <- plotting_data$Row > plate_info$rowmax |
     plotting_data$Column > plate_info$colmax | plotting_data$Column < 1
   if (any(off_plate)) {

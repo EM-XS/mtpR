@@ -136,3 +136,14 @@ test_that("wells that are not on the plate give a warning", {
   expect_warning(plot_plate(d, "v", "well", plate = 96), "2 row\\(s\\).*P24, A13")
   expect_no_warning(plot_plate(d[1, ], "v", "well", plate = 96))
 })
+
+test_that("one well labelled two ways gives a warning, but facets do not", {
+  expect_warning(
+    plot_plate(data.frame(well = c("A1", "A01"), v = 1:2), fill = "v", well_id = "well", plate = 96),
+    "more than one way.*A01"
+  )
+  facetted <- data.frame(well = c("A01", "A01"), v = 1:2, plate_id = c("p1", "p2"))
+  expect_no_warning(
+    plot_plate(facetted, fill = "v", well_id = "well", plate = 96, facet_cols = "plate_id")
+  )
+})

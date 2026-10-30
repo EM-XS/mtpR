@@ -4,9 +4,9 @@ Tools for designing and reading **m**icro**t**iter **p**late layouts in R.
 
 `mtpR` helps you:
 
-- convert between well labels (`"A01"`) and numeric indices, row- or column-wise
-  (`convert_well()`, `to_rows_columns()`), and find a well's quadrant
-  (`well_quadrant()`)
+- standardise well labels from other sources (`clean_wells()`), convert between
+  well labels (`"A01"`) and numeric indices, row- or column-wise (`convert_well()`,
+  `to_rows_columns()`), and find a well's quadrant (`well_quadrant()`)
 - reserve wells for controls (`place_controls()`) and check that a layout fits
   before you build it (`plate_capacity()`)
 - assign reactions and replicates to well positions in grouped, dealt, scattered
@@ -84,9 +84,24 @@ read_plate(sample_plate, plate_size = 96)
 #> # A tibble: 96 x 2
 #>   well  value
 #>   <chr> <dbl>
-#> 1 A1    0.172
+#> 1 A01   0.172
 #> ...
 ```
+
+## Example: tidy well labels
+
+```r
+clean_wells(c("a1", "A01", "B-12"), plate = 96)
+#> [1] "A01" "A01" "B12"
+
+clean_wells(c("R1C1", "R2C12"), plate = 96, mode = "guess")
+#> Interpreted 2 label(s) using format "R1C1": R1C1 -> A01, ...
+```
+
+`mode = "strict"` accepts only `"A01"`-style labels, `"common"` (the default) also
+accepts other case, padding and separators, and `"guess"` also tries column-first
+labels, row and column numbers, and wells inside other text. Every mode stops on
+labels it cannot read or wells that are not on the plate.
 
 ## Example: paint wells
 

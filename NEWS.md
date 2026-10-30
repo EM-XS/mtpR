@@ -1,3 +1,28 @@
+# mtpR 0.4.2
+
+## New features
+
+* New `clean_wells()` rewrites well labels in the standard form (`"A01"`). Its
+  `mode` is `"strict"` (only the standard form), `"common"` (the default: also
+  other case, padding, surrounding whitespace and one separator) or `"guess"`
+  (also `"1A"`, `"R1C1"`, `"1,1"` and wells inside text such as `"Plate1_A01"`).
+  `"guess"` reports what it changed and stops when formats disagree.
+
+## Behaviour changes
+
+* `read_plate()` returns `"A01"` instead of `"A1"`, so its wells match those of
+  `convert_well()`. Code that compares its wells with `"A1"` needs updating.
+* All functions now read well labels by the `"common"` rule. `convert_well()`,
+  `well_quadrant()` and others accept `"A 1"`, `"A-5"`, `"A_5"` and `"A:5"`, which
+  0.4.1 rejected. `"A1B2"` is still an error.
+* `plot_plate_pair()` shows and identifies wells as `"A01"` in tooltips and in
+  interactive ids.
+
+## Bug fixes
+
+* `plot_plate()` warns when one well is labelled in more than one way, such as
+  `"A1"` and `"A01"`, which used to draw one tile over the other without saying so.
+
 # mtpR 0.4.1
 
 ## Bug fixes

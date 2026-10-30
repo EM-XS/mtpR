@@ -35,9 +35,14 @@ test_that("invalid input is rejected", {
 })
 
 test_that("malformed well labels are rejected, not read as another well", {
-  for (bad in c("A1B2", "A-5", "A 1", "1A", "A")) {
+  for (bad in c("A1B2", "1A", "A", "R1C1", "Well A1")) {
     expect_error(convert_well(bad, "to_num"), "not in the form")
   }
+})
+
+test_that("labels are read by the common rule", {
+  expect_equal(convert_well(c("A1", "a01", "A001", " A1", "A 1", "A-5", "A_5", "A:5"), "to_num"),
+               c(1, 1, 1, 1, 1, 5, 5, 5))
 })
 
 test_that("non-whole and NA indices are rejected", {

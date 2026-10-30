@@ -22,7 +22,7 @@
 #' @param value_name Name to give the values column in the result. Cannot be
 #'   `"well"`.
 #'
-#' @return A tibble with two columns: `well` (e.g. `"A1"`) and the values column
+#' @return A tibble with two columns: `well` (e.g. `"A01"`) and the values column
 #'   named by `value_name` (default `"value"`).
 #'
 #' @examples
@@ -82,7 +82,7 @@ read_plate <- function(dat, plate_size = 96, value_name = "value") {
          call. = FALSE)
   }
 
-  long[["well"]] <- paste0(
+  long[["well"]] <- format_wells(
     toupper(trimws(as.character(long[[row_label_col]]))),
     col_numbers
   )

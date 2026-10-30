@@ -7,10 +7,10 @@ test_that("plate-shaped data is reshaped to long well/value form", {
   expect_s3_class(out, "tbl_df")
   expect_named(out, c("well", "value"))
   expect_equal(nrow(out), 96)
-  expect_true(all(c("A1", "H12") %in% out$well))
+  expect_true(all(c("A01", "H12") %in% out$well))
   expect_type(out$value, "double")
   # spot-check a known cell (row A, column 1)
-  expect_equal(out$value[out$well == "A1"], sample_plate[[2]][1])
+  expect_equal(out$value[out$well == "A01"], sample_plate[[2]][1])
 })
 
 test_that("value column can be renamed", {

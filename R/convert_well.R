@@ -1,6 +1,7 @@
 #' Convert between well labels and numeric indices
 #'
-#' @param input A vector of well labels (as character) or numeric indices (as numeric) to be converted.
+#' @param input A vector of well labels (as character, read as in the `"common"`
+#'   mode of [clean_wells()]) or numeric indices (as numeric) to be converted.
 #' @param direction Character; specifies the conversion direction, either "to_num" or "to_well".
 #' @param plate The size of the well plate (see [platesize_check()]).
 #' @param wise Character; specifies direction the plate is filled ("row" or "col" wise).

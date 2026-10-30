@@ -20,7 +20,7 @@ the remaining columns hold one plate column each.}
 \code{"well"}.}
 }
 \value{
-A tibble with two columns: \code{well} (e.g. \code{"A1"}) and the values column
+A tibble with two columns: \code{well} (e.g. \code{"A01"}) and the values column
 named by \code{value_name} (default \code{"value"}).
 }
 \description{

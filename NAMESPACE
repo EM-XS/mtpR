@@ -2,6 +2,7 @@
 
 export(add_plate_replicates)
 export(add_plates)
+export(clean_wells)
 export(convert_well)
 export(design_plate)
 export(picklist_summary)
