@@ -57,6 +57,18 @@ readPlate(sample_plate, plate.size = 96)
 #> ...
 ```
 
+## Example: paint wells
+
+```r
+p <- plate_picker(96, labels = c("Blank", "Standard"))
+p                                    # click or drag across wells to paint them
+plate_picker_html(p, "plate.html")   # one offline file; Save page keeps the painting
+read_plate_picker("plate.html")      # data frame of well and label
+```
+
+In Shiny, use `plate_pickerOutput()` and `renderPlate_picker()`, read the result
+with `plate_picker_value(input$id)`, and change it with `update_plate_picker()`.
+
 ## Experimental Shiny app
 
 `design_plate()` launches a graphical front-end for the functions above. It is

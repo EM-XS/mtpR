@@ -1,3 +1,17 @@
+# mtpR 0.4.0
+
+* New `plate_picker()`, an 'htmlwidgets' plate map you click or drag across to
+  paint wells with labels. Drag to paint (or erase, when the drag starts on a
+  painted well), click a row or column header to paint the line, Shift+drag for
+  a rectangle, Undo/Redo, keyboard access and light/dark themes. Works for plates
+  of 6 to 1536 wells.
+* In Shiny, use `plate_pickerOutput()` / `renderPlate_picker()`; the painting
+  arrives as `input$<id>` (turn it into a data frame with `plate_picker_value()`)
+  and `update_plate_picker()` changes it without re-rendering.
+* `plate_picker_html()` writes one self-contained HTML file without pandoc;
+  `read_plate_picker()` reads a CSV or a saved page back.
+* 'htmlwidgets', 'htmltools' and 'jsonlite' are now imported.
+
 # mtpR 0.3.1
 
 * `plot_plate()` gains a `labeller` argument for the facet strips. The default,
