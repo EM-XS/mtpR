@@ -11,13 +11,18 @@ A small toolkit for designing and reading microtiter plate layouts. It converts 
 \seealso{
 Useful links:
 \itemize{
-  \item \url{https://github.com/ejpmohr/mtpR}
-  \item Report bugs at \url{https://github.com/ejpmohr/mtpR/issues}
+  \item \url{https://github.com/EM-XS/mtpR}
+  \item Report bugs at \url{https://github.com/EM-XS/mtpR/issues}
 }
 
 }
 \author{
 \strong{Maintainer}: Emily \email{ejpmohr@gmail.com}
+
+Authors:
+\itemize{
+  \item Emily \email{ejpmohr@gmail.com}
+}
 
 }
 \keyword{internal}

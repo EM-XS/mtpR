@@ -28,144 +28,146 @@ replicate_reactions(
 \item{reaction_col_name}{The column of unique reaction identifiers to be replicated.}
 
 \item{num_replicates}{The number of replicates. One number for all
-reactions, a vector with one entry per row of `rxn_df`, or the name of a
-column of `rxn_df` holding the count for each reaction. (`replicates` is a
+reactions, a vector with one entry per row of \code{rxn_df}, or the name of a
+column of \code{rxn_df} holding the count for each reaction. (\code{replicates} is a
 synonym.)}
 
-\item{priority}{Older way to choose the layout: `"Reaction"` (grouped) or
-`"Replicate"` (dealt). Ignored when `pattern` is given.}
+\item{priority}{Superseded by \code{pattern}. \code{"Reaction"} (grouped) or
+\code{"Replicate"} (dealt). Ignored when \code{pattern} is given.}
 
 \item{inter_spacing}{The numeric distance between the sets, either different reactions or replicates.}
 
 \item{intra_spacing}{The numeric distance between replicates within a set.}
 
 \item{start_position}{The starting position for the first entry: a position
-number, or a well label such as `"B01"` (then `plate`, or `reserved` from
-[place_controls()], is needed, and `fill_wise` sets how it is numbered).}
+number, or a well label such as \code{"B01"} (then \code{plate}, or \code{reserved} from
+\code{\link[=place_controls]{place_controls()}}, is needed, and \code{fill_wise} sets how it is numbered).}
 
-\item{pattern}{`"grouped"`, `"dealt"`, `"scattered"` or `"quadrants"` (see
-Details). Also `"Together"` and `"EveryOther"`.}
+\item{pattern}{\code{"grouped"}, \code{"dealt"}, \code{"scattered"} or \code{"quadrants"} (see
+Details). Also \code{"Together"} and \code{"EveryOther"}.}
 
-\item{seed}{Random seed for `"scattered"`. If `NULL` one is drawn; either
-way the seed used is stored in `attr(result, "seed")`.}
+\item{seed}{Random seed for \code{"scattered"}. If \code{NULL} one is drawn; either
+way the seed used is stored in \code{attr(result, "seed")}.}
 
-\item{replicates}{Synonym for `num_replicates`.}
+\item{replicates}{Synonym for \code{num_replicates}.}
 
-\item{reserved}{Wells to keep free: the output of [place_controls()], a
-vector of well labels (e.g. `c("A01", "H12")`) or a vector of position
-numbers on one plate. `NULL` (default) reserves nothing.}
+\item{reserved}{Wells to keep free: the output of \code{\link[=place_controls]{place_controls()}}, a
+vector of well labels (e.g. \code{c("A01", "H12")}) or a vector of position
+numbers on one plate. \code{NULL} (default) reserves nothing.}
 
-\item{plate}{Plate size. Needed when `reserved` is a vector, and for
-`pattern = "quadrants"` and `controls_spread`; read from `reserved` when it
-comes from [place_controls()].}
+\item{plate}{Plate size. Needed when \code{reserved} is a vector, and for
+\code{pattern = "quadrants"} and \code{controls_spread}; read from \code{reserved} when it
+comes from \code{\link[=place_controls]{place_controls()}}.}
 
-\item{fill_wise}{`"row"` or `"col"`: the direction positions run along the
+\item{fill_wise}{\code{"row"} or \code{"col"}: the direction positions run along the
 plate. Used to turn reserved well labels into positions, and to lay out
-`pattern = "quadrants"`.}
+\code{pattern = "quadrants"}.}
 
 \item{controls_spread}{Number of control wells to spread evenly among the
-reactions (see the section above). `NULL` (default) adds none.}
+reactions (see the section above). \code{NULL} (default) adds none.}
 
-\item{controls_name}{Name of these controls in the `Control` column of
-`attr(result, "plate_map")`.}
+\item{controls_name}{Name of these controls in the \code{Control} column of
+\code{attr(result, "plate_map")}.}
 }
 \value{
 A data frame with the columns 'reaction', 'replicate', and 'position'
-        (plus 'Quadrant' for `pattern = "quadrants"`).
-        Each row corresponds to a reaction replicate with a unique assigned position.
-        With `controls_spread`, `attr(, "plate_map")` is the plate with the
-        controls and the reaction wells marked.
+(plus 'Quadrant' for \code{pattern = "quadrants"}).
+Each row corresponds to a reaction replicate with a unique assigned position.
+With \code{controls_spread}, \code{attr(, "plate_map")} is the plate with the
+controls and the reaction wells marked.
 }
 \description{
 Takes a data frame of reactions and a number of replicates, and assigns a
 unique numeric position to every reaction replicate.
 }
 \details{
-The layout is chosen with `pattern`. For three reactions (1, 2, 3) and three
+The layout is chosen with \code{pattern}. For three reactions (1, 2, 3) and three
 replicates the order along the plate is:
+\itemize{
+\item \code{"grouped"}: \verb{111 222 333}. Replicates of a reaction sit side by side.
+Spacing: \code{intra_spacing} between replicates of one reaction and
+\code{inter_spacing} between one reaction and the next.
+\item \code{"dealt"}: \verb{123 123 123}. The reactions are dealt out like cards, once per
+replicate. Spacing: \code{inter_spacing} between reactions inside a round and
+\code{intra_spacing} from one round to the next.
+\item \code{"scattered"}: replicates and reactions in random order over the same
+run of positions (spaced \code{inter_spacing} apart). Reproducible with \code{seed}.
+\item \code{"quadrants"}: see the section below.
+}
 
-* `"grouped"`: `111 222 333`. Replicates of a reaction sit side by side.
-  Spacing: `intra_spacing` between replicates of one reaction and
-  `inter_spacing` between one reaction and the next.
-* `"dealt"`: `123 123 123`. The reactions are dealt out like cards, once per
-  replicate. Spacing: `inter_spacing` between reactions inside a round and
-  `intra_spacing` from one round to the next.
-* `"scattered"`: replicates and reactions in random order over the same
-  run of positions (spaced `inter_spacing` apart). Reproducible with `seed`.
-* `"quadrants"`: see the section below.
-
-The older `priority` argument still works: `"Reaction"` is `"grouped"` and
-`"Replicate"` is `"dealt"`, with identical positions. `pattern` also accepts
-the names `"Together"` (grouped) and `"EveryOther"` (dealt).
+The \code{priority} argument is superseded by \code{pattern}. It keeps working and there
+is no plan to remove it, but new code should use \code{pattern}: \code{"Reaction"} is
+\code{"grouped"} and \code{"Replicate"} is \code{"dealt"}, with identical positions. \code{pattern}
+also accepts the names \code{"Together"} (grouped) and \code{"EveryOther"} (dealt).
 }
 \section{Reserved wells}{
 
-When `reserved` is given, those wells are skipped. Positions are first worked
+When \code{reserved} is given, those wells are skipped. Positions are first worked
 out as if no wells were reserved, and the n-th position counted from
-`start_position` is then moved to the n-th free well (so spacing is counted in
+\code{start_position} is then moved to the n-th free well (so spacing is counted in
 free wells, and the layout flows around controls and onto the next plate).
 The reserved wells repeat on every plate.
 }
 
 \section{Quadrants}{
 
-`pattern = "quadrants"` tiles the plate into 2x2 squares on a fixed grid from
+\code{pattern = "quadrants"} tiles the plate into 2x2 squares on a fixed grid from
 A01 (rows A-B, C-D, ...; columns 1-2, 3-4, ...). Inside a square the
 positions are numbered
 
-```
-1 2
+\if{html}{\out{<div class="sourceCode">}}\preformatted{1 2
 3 4
-```
+}\if{html}{\out{</div>}}
 
-Reaction `i` takes square `i` and replicate `k` goes in position `k` (see
-[well_quadrant()]), so the replicates of every reaction sit in quadrants 1, 2,
+Reaction \code{i} takes square \code{i} and replicate \code{k} goes in position \code{k} (see
+\code{\link[=well_quadrant]{well_quadrant()}}), so the replicates of every reaction sit in quadrants 1, 2,
 3 and 4 of the plate. This needs a plate with an even number of rows and
-columns (24, 48, 96, 384, 1536) and a known plate size: give `plate`, or
-`reserved` from [place_controls()].
-
-* Squares are filled in `fill_wise` order: `"row"` goes across the rows of
-  squares, `"col"` down the columns of squares.
-* With fewer than 4 replicates the unused positions of the square stay empty
-  (replicate `k` always sits in quadrant `k`).
-* With more than 4, the reaction takes further squares: replicates 5 to 8 go
-  in the next square, positions 1 to 4, and so on. A reaction with 6
-  replicates takes 2 squares, and positions 3 and 4 of the second are empty.
-  Different replicate counts per reaction work as for the other patterns.
-* The squares sit on the fixed grid. If `start_position` is not the top-left
-  well of a square (odd row and odd column) the start moves forward to the next
-  square's top-left well, and a message says so.
-* `inter_spacing` counts whole squares: 2 leaves one empty square between
-  reactions. `intra_spacing` does not apply (replicates have fixed
-  positions); a value other than 1 is ignored with a warning.
-* A square that contains any reserved well is skipped whole, so replicate
-  `k` stays in quadrant `k`. The squares left over by a reserved well are not used.
-* The output has a `Quadrant` column (1 to 4).
-* `position` runs in `fill_wise` order, like for the other patterns, so convert
-  it with `convert_well(position, "to_well", plate, wise = fill_wise)`.
+columns (24, 48, 96, 384, 1536) and a known plate size: give \code{plate}, or
+\code{reserved} from \code{\link[=place_controls]{place_controls()}}.
+\itemize{
+\item Squares are filled in \code{fill_wise} order: \code{"row"} goes across the rows of
+squares, \code{"col"} down the columns of squares.
+\item With fewer than 4 replicates the unused positions of the square stay empty
+(replicate \code{k} always sits in quadrant \code{k}).
+\item With more than 4, the reaction takes further squares: replicates 5 to 8 go
+in the next square, positions 1 to 4, and so on. A reaction with 6
+replicates takes 2 squares, and positions 3 and 4 of the second are empty.
+Different replicate counts per reaction work as for the other patterns.
+\item The squares sit on the fixed grid. If \code{start_position} is not the top-left
+well of a square (odd row and odd column) the start moves forward to the next
+square's top-left well, and a message says so.
+\item \code{inter_spacing} counts whole squares: 2 leaves one empty square between
+reactions. \code{intra_spacing} does not apply (replicates have fixed
+positions); a value other than 1 is ignored with a warning.
+\item A square that contains any reserved well is skipped whole, so replicate
+\code{k} stays in quadrant \code{k}. The squares left over by a reserved well are not used.
+\item The output has a \code{Quadrant} column (1 to 4).
+\item \code{position} runs in \code{fill_wise} order, like for the other patterns, so convert
+it with \code{convert_well(position, "to_well", plate, wise = fill_wise)}.
+}
 }
 
 \section{Spreading controls among reactions}{
 
-`controls_spread = n` reserves `n` extra wells for controls, spread evenly
+\code{controls_spread = n} reserves \code{n} extra wells for controls, spread evenly
 among the reactions, and lays out the reactions around them, all in one call.
-The block of free wells from `start_position` that the layout covers (the
+The block of free wells from \code{start_position} that the layout covers (the
 reaction wells and any gaps from the spacing) gets the controls as described
-for `method = "spread"` in [place_controls()]: with 8 controls and 40 reaction
+for \code{method = "spread"} in \code{\link[=place_controls]{place_controls()}}: with 8 controls and 40 reaction
 wells there is a control after every 5th reaction. Controls already in
-`reserved` are kept and are not counted as free wells. Everything must fit on
+\code{reserved} are kept and are not counted as free wells. Everything must fit on
 the first plate (the controls would otherwise repeat on every plate); if it
-does not, call [place_controls()] yourself and pass it as `reserved`. The
+does not, call \code{\link[=place_controls]{place_controls()}} yourself and pass it as \code{reserved}. The
 plate map with the controls and the reactions is returned as
-`attr(result, "plate_map")` (draw it with [plot_plate()]). Not available for
-`pattern = "quadrants"`.
+\code{attr(result, "plate_map")} (draw it with \code{\link[=plot_plate]{plot_plate()}}). Not available for
+\code{pattern = "quadrants"}.
 }
 
 \examples{
 data <- data.frame(rxn = 1:3)
-grouped <- replicate_reactions(data, "rxn", num_replicates = 3, priority = "Reaction",
+grouped <- replicate_reactions(data, "rxn", num_replicates = 3, pattern = "grouped",
                                 inter_spacing = 10, intra_spacing = 1, start_position = 1)
-dealt <- replicate_reactions(data, "rxn", num_replicates = 3, priority = "Replicate",
+dealt <- replicate_reactions(data, "rxn", num_replicates = 3, pattern = "dealt",
                              inter_spacing = 5, intra_spacing = 1, start_position = 1)
 
 rxns <- data.frame(rxn = 1:3, n = c(2, 3, 1))

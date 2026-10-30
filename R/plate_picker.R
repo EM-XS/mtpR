@@ -77,7 +77,8 @@
 #'   shinyApp(ui, server)
 #' }
 #' @seealso [plate_picker_html()], [read_plate_picker()], [plate_picker_value()],
-#'   [update_plate_picker()]
+#'   [update_plate_picker()]. [design_plate()] lays wells out from rules instead
+#'   of by hand.
 #' @export
 plate_picker <- function(plate = 96,
                          labels = NULL,

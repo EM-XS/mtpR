@@ -7,26 +7,26 @@
 plate_picker_html(widget, file, title = NULL, ...)
 }
 \arguments{
-\item{widget}{A [plate_picker()] widget.}
+\item{widget}{A \code{\link[=plate_picker]{plate_picker()}} widget.}
 
 \item{file}{Output path.}
 
-\item{title}{Page title; also names the downloaded files. Default `NULL`
+\item{title}{Page title; also names the downloaded files. Default \code{NULL}
 gives the title "Plate picker".}
 
 \item{...}{Used internally by 'htmlwidgets', which builds the widget's
 container through a function of this name; leave empty.}
 }
 \value{
-`file`, invisibly.
+\code{file}, invisibly.
 }
 \description{
-Unlike `htmlwidgets::saveWidget(selfcontained = TRUE)` this does not need
+Unlike \code{htmlwidgets::saveWidget(selfcontained = TRUE)} this does not need
 pandoc: the widget's JavaScript and CSS and the 'htmlwidgets' runtime are
 written into the page. The file opens offline without R. In it, Copy rows,
 Download CSV and Save page are available (Save page downloads a copy of the
 page with the current painting, so reopening it restores the painting;
-[read_plate_picker()] reads it back).
+\code{\link[=read_plate_picker]{read_plate_picker()}} reads it back).
 }
 \examples{
 f <- tempfile(fileext = ".html")

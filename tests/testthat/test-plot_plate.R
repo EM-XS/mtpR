@@ -130,3 +130,9 @@ test_that("tooltip and interactive arguments are validated", {
   expect_false(any(vapply(plot_plate(d, "grp", "well", plate = 96)$layers,
                           function(l) inherits(l$geom, "GeomInteractiveTile"), TRUE)))
 })
+
+test_that("wells that are not on the plate give a warning", {
+  d <- data.frame(well = c("A01", "P24", "A13"), v = 1:3)
+  expect_warning(plot_plate(d, "v", "well", plate = 96), "2 row\\(s\\).*P24, A13")
+  expect_no_warning(plot_plate(d[1, ], "v", "well", plate = 96))
+})

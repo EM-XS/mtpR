@@ -11,10 +11,10 @@ platesize_check(plate_size)
 }
 \value{
 A list containing the information of plate dimensions:
-          - rows: A character vector of row identifiers.
-          - columns: A numeric vector of column numbers.
-          - rowmax: The total number of rows in the plate.
-          - colmax: The total number of columns in the plate.
+- rows: A character vector of row identifiers.
+- columns: A numeric vector of column numbers.
+- rowmax: The total number of rows in the plate.
+- colmax: The total number of columns in the plate.
 }
 \description{
 This function validates if the entered plate size is supported and returns the

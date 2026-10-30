@@ -482,7 +482,7 @@
     svg.addEventListener('pointerleave', hideTip);
 
     // ---- keyboard --------------------------------------------------------
-    el.addEventListener('keydown', function (ev) {
+    function onKeydown(ev) {
       var tag = ev.target && ev.target.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
       var mod = ev.ctrlKey || ev.metaKey;
@@ -508,7 +508,8 @@
         default: handled = false;
       }
       if (handled) { ev.preventDefault(); setFocus(r * ncol + c); }
-    });
+    }
+    el.addEventListener('keydown', onKeydown);
 
     // ---- updates from Shiny ----------------------------------------------
     function update(msg) {
@@ -536,7 +537,8 @@
       pageHTML: pageHTML,
       undo: undo, redo: redo,
       layout: layout,
-      destroy: function () { if (ro) ro.disconnect(); }
+      // `el` outlives a re-render, so its listener must not.
+      destroy: function () { if (ro) ro.disconnect(); el.removeEventListener('keydown', onKeydown); }
     };
     return picker;
   }

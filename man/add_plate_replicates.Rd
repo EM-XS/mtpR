@@ -13,7 +13,7 @@ add_plate_replicates(reactions, plate_replicate_number_total)
 }
 \value{
 A data frame with reactions replicated across the specified number of plates,
-        including a new identifier for each plate replicate.
+including a new identifier for each plate replicate.
 }
 \description{
 This function takes a data frame of reactions and adds replicates for each reaction

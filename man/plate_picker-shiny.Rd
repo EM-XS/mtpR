@@ -13,18 +13,18 @@ renderPlate_picker(expr, env = parent.frame(), quoted = FALSE)
 \arguments{
 \item{outputId}{Output variable to read from.}
 
-\item{width, height}{CSS sizes (a string such as `"100%"` or a number of
-pixels). The default height, `"auto"`, follows the plate's shape.}
+\item{width, height}{CSS sizes (a string such as \code{"100\%"} or a number of
+pixels). The default height, \code{"auto"}, follows the plate's shape.}
 
-\item{expr}{An expression that returns a [plate_picker()] widget.}
+\item{expr}{An expression that returns a \code{\link[=plate_picker]{plate_picker()}} widget.}
 
-\item{env}{The environment in which to evaluate `expr`.}
+\item{env}{The environment in which to evaluate \code{expr}.}
 
-\item{quoted}{Is `expr` a quoted expression?}
+\item{quoted}{Is \code{expr} a quoted expression?}
 }
 \value{
-`plate_pickerOutput()` returns a Shiny output element and
-  `renderPlate_picker()` a render function.
+\code{plate_pickerOutput()} returns a Shiny output element and
+\code{renderPlate_picker()} a render function.
 }
 \description{
 Shiny bindings for plate_picker

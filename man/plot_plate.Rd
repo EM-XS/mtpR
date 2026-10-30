@@ -47,49 +47,49 @@ facetting on rows and columns, the bare value when facetting on one. Use e.g.
 
 \item{plate}{The size of the plate}
 
-\item{size}{The size of the plotted data on the plate (`style = "points"` only)}
+\item{size}{The size of the plotted data on the plate (\code{style = "points"} only)}
 
-\item{shape}{The shape of each plotted data point on the plate (`style = "points"` only)}
+\item{shape}{The shape of each plotted data point on the plate (\code{style = "points"} only)}
 
-\item{na_fill}{Fill color for the plate (`style = "points"` only)}
+\item{na_fill}{Fill color for the plate (\code{style = "points"} only)}
 
-\item{na_size_ratio}{Background ratio (`style = "points"` only)}
+\item{na_size_ratio}{Background ratio (\code{style = "points"} only)}
 
-\item{na_alpha}{Background transparency (`style = "points"` only)}
+\item{na_alpha}{Background transparency (\code{style = "points"} only)}
 
-\item{style}{`"tiles"` (default) or `"points"`, the original fixed-size point look.}
+\item{style}{\code{"tiles"} (default) or \code{"points"}, the original fixed-size point look.}
 
 \item{label}{Optional name of a column to print in each well.}
 
-\item{label_size}{Text size for `label`. The default depends on the plate size.}
+\item{label_size}{Text size for \code{label}. The default depends on the plate size.}
 
-\item{legend}{`"auto"` (default) shows a legend unless there are more than 12
-keys; `TRUE` and `FALSE` force it on or off. Ignored for `style = "points"`,
+\item{legend}{\code{"auto"} (default) shows a legend unless there are more than 12
+keys; \code{TRUE} and \code{FALSE} force it on or off. Ignored for \code{style = "points"},
 which never had one.}
 
-\item{scale}{`"auto"` (default) fills numeric columns on a continuous
+\item{scale}{\code{"auto"} (default) fills numeric columns on a continuous
 sequential scale and everything else with discrete colours; use
-`"discrete"` to treat numbers as categories.}
+\code{"discrete"} to treat numbers as categories.}
 
-\item{highlight}{Optional vector of wells (e.g. `c("A01", "B07")`) to outline.}
+\item{highlight}{Optional vector of wells (e.g. \code{c("A01", "B07")}) to outline.}
 
 \item{empty_fill, empty_colour}{Fill and outline of wells without data.}
 
-\item{interactive}{`FALSE` (default) returns a plain ggplot. `TRUE` returns a
-'ggiraph' girafe object where each well has `data_id` set to its well label
-and a tooltip. `"ggplot"` returns the interactive ggplot before it is
-wrapped by `ggiraph::girafe()`, so you can add layers, change the tooltip
+\item{interactive}{\code{FALSE} (default) returns a plain ggplot. \code{TRUE} returns a
+'ggiraph' girafe object where each well has \code{data_id} set to its well label
+and a tooltip. \code{"ggplot"} returns the interactive ggplot before it is
+wrapped by \code{ggiraph::girafe()}, so you can add layers, change the tooltip
 or set your own girafe options. Both interactive modes need the ggiraph
 package.}
 
 \item{tooltip}{Optional name of a column whose values are used as the tooltip
-text when interactive (default: the well and the `fill` value). Ignored
+text when interactive (default: the well and the \code{fill} value). Ignored
 when not interactive.}
 }
 \value{
-A ggplot object, or a girafe object when `interactive = TRUE`. With
-  `interactive = "ggplot"` the ggplot has interactive layers (the well tiles
-  use `ggiraph::geom_tile_interactive()`) and has not been through `girafe()`.
+A ggplot object, or a girafe object when \code{interactive = TRUE}. With
+\code{interactive = "ggplot"} the ggplot has interactive layers (the well tiles
+use \code{ggiraph::geom_tile_interactive()}) and has not been through \code{girafe()}.
 }
 \description{
 Draws a plate map. By default every well is a tile that fills the panel,

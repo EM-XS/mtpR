@@ -25,6 +25,21 @@ plate_row_labels <- function(n) {
   labels[seq_len(n)]
 }
 
+#' Split well labels into rows and columns
+#'
+#' The one parser for `<letters><digits>` labels. Anything else, including
+#' labels with extra text such as `"A1B2"`, gives `NA` in both parts.
+#'
+#' @param x A vector of well labels.
+#'
+#' @return A list with `row` (upper-case letters) and `col` (numbers).
+#' @keywords internal
+#' @noRd
+parse_wells <- function(x) {
+  m <- stringr::str_match(as.character(x), "^([A-Za-z]+)([0-9]+)$")
+  list(row = toupper(m[, 2]), col = as.numeric(m[, 3]))
+}
+
 #' Well labels for a plate, in fill order
 #'
 #' Helper for the plate designer UI: the full set of well labels for `plate`,

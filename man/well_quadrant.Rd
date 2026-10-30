@@ -7,9 +7,9 @@
 well_quadrant(well, plate = 96)
 }
 \arguments{
-\item{well}{Well labels, e.g. `"A01"` or `"A1"`.}
+\item{well}{Well labels, e.g. \code{"A01"} or \code{"A1"}.}
 
-\item{plate}{Plate size (see [platesize_check()]).}
+\item{plate}{Plate size (see \code{\link[=platesize_check]{platesize_check()}}).}
 }
 \value{
 An integer vector, 1 to 4, one per well.
@@ -20,15 +20,14 @@ A-B, C-D, ...; columns 1-2, 3-4, ...). Inside each square the wells are
 numbered
 }
 \details{
-```
-1 2
+\if{html}{\out{<div class="sourceCode">}}\preformatted{1 2
 3 4
-```
+}\if{html}{\out{</div>}}
 
 and "quadrant k" is every well in position k. On a 384-well plate quadrant 1
 (odd rows, odd columns) is a 96-well grid; on a 96-well plate each quadrant
-is 4 x 6 = 24 wells. This is the layout used by `pattern = "quadrants"` in
-[replicate_reactions()] and `method = "quadrant"` in [place_controls()].
+is 4 x 6 = 24 wells. This is the layout used by \code{pattern = "quadrants"} in
+\code{\link[=replicate_reactions]{replicate_reactions()}} and \code{method = "quadrant"} in \code{\link[=place_controls]{place_controls()}}.
 
 Needs a plate with an even number of rows and columns (24, 48, 96, 384 and
 1536 wells).

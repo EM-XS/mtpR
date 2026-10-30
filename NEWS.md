@@ -1,3 +1,34 @@
+# mtpR 0.4.1
+
+## Bug fixes
+
+* `convert_well()` rejects malformed labels such as `"A1B2"`, `"A-5"` and
+  `"A 1"`. They used to be read as a real well (`"A1B2"` as `"A02"`). Functions
+  that take well labels through it, such as `well_quadrant()`, get the same
+  check; `place_controls()` removes spaces first, so it still accepts `"A 1"`.
+  Non-whole or `NA` indices now give a clear error.
+* `read_plate()` stops when two cells map to one well. Column names with an
+  earlier number (`"Plate1_col3"`) and repeated row labels used to return
+  duplicate wells without any message. `value_name = "well"` is now an error.
+* `replicate_reactions()` stops on `NA` reaction identifiers instead of dropping
+  those reactions.
+* `plot_plate()` warns about wells that are not on the plate instead of leaving
+  them out without saying so.
+* `plate_picker()` no longer leaves the previous widget's keyboard handler behind
+  after a re-render, where Undo could report the old painting to `input$<id>`.
+* `to_rows_columns()` gives a clear error for a missing column.
+* The help pages now render their Markdown (links, lists and code).
+* The `URL` and `BugReports` fields and the install instructions pointed to a
+  repository that does not exist; they now point to `EM-XS/mtpR`.
+
+## Deprecations and naming
+
+* New `read_plate()`, with a `plate_size` argument. `readPlate()` still works but
+  is deprecated, and will be removed in 0.5.0.
+* `place_controls(method = "every")` will be removed in 0.5.0.
+* `replicate_reactions(priority = )` is documented as superseded by `pattern`. It
+  keeps working, gives no warning and has no removal date.
+
 # mtpR 0.4.0
 
 * New `plate_picker()`, an 'htmlwidgets' plate map you click or drag across to

@@ -5,12 +5,19 @@ Tools for designing and reading **m**icro**t**iter **p**late layouts in R.
 `mtpR` helps you:
 
 - convert between well labels (`"A01"`) and numeric indices, row- or column-wise
-  (`convert_well()`, `to_rows_columns()`)
-- assign reactions and replicates to well positions with configurable spacing and
-  priority (`replicate_reactions()`), spread them across multiple plates
-  (`add_plates()`), and duplicate whole plates (`add_plate_replicates()`)
-- draw plate maps with `ggplot2` (`plot_plate()`)
-- reshape plate-shaped tables into tidy long format (`readPlate()`)
+  (`convert_well()`, `to_rows_columns()`), and find a well's quadrant
+  (`well_quadrant()`)
+- reserve wells for controls (`place_controls()`) and check that a layout fits
+  before you build it (`plate_capacity()`)
+- assign reactions and replicates to well positions in grouped, dealt, scattered
+  or quadrant patterns with configurable spacing (`replicate_reactions()`), spread
+  them across multiple plates (`add_plates()`), and duplicate whole plates
+  (`add_plate_replicates()`)
+- draw plate maps with `ggplot2` (`plot_plate()`), mark which wells hold reactions
+  (`plate_roles()`), and draw and count picklist transfers between plates
+  (`plot_plate_pair()`, `picklist_summary()`)
+- paint wells by hand in Shiny or an offline HTML file (`plate_picker()`)
+- reshape plate-shaped tables into tidy long format (`read_plate()`)
 
 Supported plate sizes: 6, 12, 24, 48, 96, 384, 1536.
 
@@ -21,7 +28,7 @@ Supported plate sizes: 6, 12, 24, 48, 96, 384, 1536.
 devtools::install("path/to/mtpR")
 
 # or directly from GitHub
-devtools::install_github("ejpmohr/mtpR")
+devtools::install_github("EM-XS/mtpR")
 ```
 
 ## Example: design a plate
@@ -32,15 +39,39 @@ library(mtpR)
 design <- data.frame(rxn = 1:8) |>
   replicate_reactions(
     "rxn",
-    num_replicates = 3, priority = "Reaction",
+    num_replicates = 3, pattern = "grouped",
     inter_spacing = 2, intra_spacing = 1,
-    start_position = convert_well("A01", "to_num", plate = 96)
+    start_position = "A01", plate = 96
   ) |>
   add_plates("position", plate_size = 96) |>
   dplyr::mutate(well = convert_well(Well.Index, "to_well", plate = 96))
 
 plot_plate(design, fill = "rxn", well_id = "well", plate = 96)
 ```
+
+`pattern` sets the layout. For three reactions in triplicate, `"grouped"` gives
+`111 222 333` and `"dealt"` gives `123 123 123`. `"scattered"` randomises the
+order (reproducibly, with `seed`), and `"quadrants"` puts replicate `k` of each
+reaction in quadrant `k` of a 2x2 square.
+
+## Example: plan around controls
+
+```r
+controls <- place_controls(96, "edge", name = "buffer")
+
+# Stops with an explanation if the layout does not fit
+plate_capacity(8, replicates = 3, plate = 96, controls = controls)
+
+design <- data.frame(rxn = 1:8) |>
+  replicate_reactions("rxn", 3, pattern = "grouped", reserved = controls) |>
+  dplyr::mutate(well = convert_well(position, "to_well", plate = 96))
+
+plate_roles(controls, design, well_id = "well") |>
+  plot_plate(fill = "Role", well_id = "Well", plate = 96)
+```
+
+Other placements include `"lines"` (whole rows or columns), `"spread"` (evenly
+among the reactions), `"random"` and `"quadrant"`; see `?place_controls`.
 
 ## Example: read plate-shaped data
 
@@ -49,7 +80,7 @@ sample_plate <- readRDS(
   system.file("extdata", "SamplePlateShapedData.rds", package = "mtpR")
 )
 
-readPlate(sample_plate, plate.size = 96)
+read_plate(sample_plate, plate_size = 96)
 #> # A tibble: 96 x 2
 #>   well  value
 #>   <chr> <dbl>
@@ -69,7 +100,26 @@ read_plate_picker("plate.html")      # data frame of well and label
 In Shiny, use `plate_pickerOutput()` and `renderPlate_picker()`, read the result
 with `plate_picker_value(input$id)`, and change it with `update_plate_picker()`.
 
+## Example: draw a picklist
+
+```r
+picklist <- data.frame(
+  `Source Plate Name` = "Src1",
+  `Source Well` = c("A1", "A1", "B1"),
+  `Destination Well` = c("A1", "A2", "B1"),
+  `Transfer Volume` = c(25, 50, 75),
+  check.names = FALSE
+)
+
+picklist_summary(picklist)$total_volume
+plot_plate_pair(picklist, source_plate = 384, dest_plate = 96)
+```
+
+Pass `interactive = TRUE` to highlight linked wells on hover (needs `ggiraph`).
+
 ## Experimental Shiny app
 
-`design_plate()` launches a graphical front-end for the functions above. It is
-experimental; the programmatic functions are the supported interface.
+`design_plate()` launches a graphical front-end that lays out a plate from rules
+such as the replicate count and spacing, using the functions above. It is
+experimental; the programmatic functions are the supported interface. To place
+wells by hand instead, use `plate_picker()`.

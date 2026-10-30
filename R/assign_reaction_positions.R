@@ -16,9 +16,10 @@
 #'   run of positions (spaced `inter_spacing` apart). Reproducible with `seed`.
 #' * `"quadrants"`: see the section below.
 #'
-#' The older `priority` argument still works: `"Reaction"` is `"grouped"` and
-#' `"Replicate"` is `"dealt"`, with identical positions. `pattern` also accepts
-#' the names `"Together"` (grouped) and `"EveryOther"` (dealt).
+#' The `priority` argument is superseded by `pattern`. It keeps working and there
+#' is no plan to remove it, but new code should use `pattern`: `"Reaction"` is
+#' `"grouped"` and `"Replicate"` is `"dealt"`, with identical positions. `pattern`
+#' also accepts the names `"Together"` (grouped) and `"EveryOther"` (dealt).
 #'
 #' @section Reserved wells:
 #' When `reserved` is given, those wells are skipped. Positions are first worked
@@ -83,7 +84,7 @@
 #'   reactions, a vector with one entry per row of `rxn_df`, or the name of a
 #'   column of `rxn_df` holding the count for each reaction. (`replicates` is a
 #'   synonym.)
-#' @param priority Older way to choose the layout: `"Reaction"` (grouped) or
+#' @param priority Superseded by `pattern`. `"Reaction"` (grouped) or
 #'   `"Replicate"` (dealt). Ignored when `pattern` is given.
 #' @param inter_spacing The numeric distance between the sets, either different reactions or replicates.
 #' @param intra_spacing The numeric distance between replicates within a set.
@@ -117,9 +118,9 @@
 #'
 #' @examples
 #' data <- data.frame(rxn = 1:3)
-#' grouped <- replicate_reactions(data, "rxn", num_replicates = 3, priority = "Reaction",
+#' grouped <- replicate_reactions(data, "rxn", num_replicates = 3, pattern = "grouped",
 #'                                 inter_spacing = 10, intra_spacing = 1, start_position = 1)
-#' dealt <- replicate_reactions(data, "rxn", num_replicates = 3, priority = "Replicate",
+#' dealt <- replicate_reactions(data, "rxn", num_replicates = 3, pattern = "dealt",
 #'                              inter_spacing = 5, intra_spacing = 1, start_position = 1)
 #'
 #' rxns <- data.frame(rxn = 1:3, n = c(2, 3, 1))
@@ -184,6 +185,10 @@ replicate_reactions <- function(rxn_df,
   }
 
   reactions_vector <- rxn_df[[reaction_col_name]]
+  if (anyNA(reactions_vector)) {
+    stop("Reaction identifiers in column '", reaction_col_name,
+         "' must not be NA.", call. = FALSE)
+  }
   if (anyDuplicated(reactions_vector)) {
     stop("Reaction identifiers in column '", reaction_col_name,
          "' must be unique.", call. = FALSE)

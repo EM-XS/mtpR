@@ -20,8 +20,8 @@
 #' * `"quadrant"`: every well in quadrant(s) `quadrant` (1-4) of the 2x2
 #'   squares that tile the plate; see [well_quadrant()]. Several quadrants can
 #'   be given.
-#' * `"every"`: deprecated. Use `"lines"` for whole columns or rows, or
-#'   `"spread"` for `n` wells spread out.
+#' * `"every"`: deprecated, and will be removed in mtpR 0.5.0. Use `"lines"` for
+#'   whole columns or rows, or `"spread"` for `n` wells spread out.
 #'
 #' Calls can be chained: give an earlier result as `plate` to reserve more
 #' wells. If a later call takes a well that an earlier call already reserved,
@@ -313,7 +313,7 @@ spread_index <- function(n, among) {
 
 lifecycle_warn_every <- function() {
   rlang::warn(
-    c("`place_controls(method = \"every\")` is deprecated.",
+    c("`place_controls(method = \"every\")` is deprecated and will be removed in mtpR 0.5.0.",
       i = "Use method = \"lines\" for whole columns or rows (e.g. lines = c(1, 5, 9)),",
       i = "or method = \"spread\" for n wells spread out."),
     .frequency = "once", .frequency_id = "mtpR_place_controls_every"

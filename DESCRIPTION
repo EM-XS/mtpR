@@ -1,7 +1,7 @@
 Package: mtpR
 Type: Package
 Title: Microtiter Plate Layout and Data Tools
-Version: 0.4.0
+Version: 0.4.1
 Authors@R:
     person("Emily", email = "ejpmohr@gmail.com", role = c("aut", "cre"))
 Description: A small toolkit for designing and reading microtiter plate
@@ -27,7 +27,8 @@ Imports:
 Suggests:
     ggiraph,
     testthat (>= 3.0.0)
-RoxygenNote: 7.3.2
+Roxygen: list(markdown = TRUE)
 Config/testthat/edition: 3
-URL: https://github.com/ejpmohr/mtpR
-BugReports: https://github.com/ejpmohr/mtpR/issues
+URL: https://github.com/EM-XS/mtpR
+BugReports: https://github.com/EM-XS/mtpR/issues
+Config/roxygen2/version: 8.1.0

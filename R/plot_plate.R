@@ -117,6 +117,14 @@ plot_plate <- function(data,
   plotting_data <- to_rows_columns(data, well_id)
   plotting_data$.well <- as.character(plotting_data[[well_id]])
 
+  off_plate <- plotting_data$Row > plate_info$rowmax |
+    plotting_data$Column > plate_info$colmax | plotting_data$Column < 1
+  if (any(off_plate)) {
+    warning(sum(off_plate), " row(s) of `data` are not on a ", plate, "-well plate and ",
+            "are not drawn: ", paste(utils::head(unique(plotting_data$.well[off_plate]), 5),
+                                     collapse = ", "), ".", call. = FALSE)
+  }
+
   continuous <- scale == "continuous" ||
     (scale == "auto" && is.numeric(data[[fill]]))
   # Bind fill data into the dataframe for plotting, as a new column

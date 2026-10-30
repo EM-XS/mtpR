@@ -7,21 +7,21 @@
 plate_roles(plate, reactions, well_id = "Well.Position")
 }
 \arguments{
-\item{plate}{A plate from [place_controls()].}
+\item{plate}{A plate from \code{\link[=place_controls]{place_controls()}}.}
 
 \item{reactions}{A vector of well labels, or a data frame with a column of
-well labels named by `well_id`.}
+well labels named by \code{well_id}.}
 
-\item{well_id}{Column of `reactions` with the well labels, when `reactions`
+\item{well_id}{Column of \code{reactions} with the well labels, when \code{reactions}
 is a data frame.}
 }
 \value{
-The plate, with `Role` updated.
+The plate, with \code{Role} updated.
 }
 \description{
-Updates the `Role` column of a plate from [place_controls()]: wells given in
-`reactions` become `"reaction"`; the rest stay `"control"` or `"empty"`. Use
-it after [replicate_reactions()] and [convert_well()] have given each
+Updates the \code{Role} column of a plate from \code{\link[=place_controls]{place_controls()}}: wells given in
+\code{reactions} become \code{"reaction"}; the rest stay \code{"control"} or \code{"empty"}. Use
+it after \code{\link[=replicate_reactions]{replicate_reactions()}} and \code{\link[=convert_well]{convert_well()}} have given each
 reaction a well, so the plate can be drawn by role or counted.
 }
 \examples{

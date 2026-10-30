@@ -9,10 +9,10 @@ to_rows_columns(wells, well_id)
 \arguments{
 \item{wells}{A dataframe containing a column with well IDs.}
 
-\item{well_id}{A string representing the name of the column in `wells` with the well IDs.}
+\item{well_id}{A string representing the name of the column in \code{wells} with the well IDs.}
 }
 \value{
-A tibble with two additional columns `Row` and `Column` for the numeric row and column indices.
+A tibble with two additional columns \code{Row} and \code{Column} for the numeric row and column indices.
 }
 \description{
 This function takes a dataframe and a column name containing well IDs (e.g., "A1", "B6", "AA1") and

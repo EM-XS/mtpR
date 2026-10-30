@@ -2,10 +2,14 @@
 #'
 #' @param input A vector of well labels (as character) or numeric indices (as numeric) to be converted.
 #' @param direction Character; specifies the conversion direction, either "to_num" or "to_well".
-#' @param plate The size of the well plate (96, 384, or 1536 are supported).
+#' @param plate The size of the well plate (see [platesize_check()]).
 #' @param wise Character; specifies direction the plate is filled ("row" or "col" wise).
 #'             Applicable for both "to_num" and "to_well" directions.
 #' @return A vector of converted well labels or numeric indices.
+#' @examples
+#' convert_well(c("A01", "B12"), "to_num", plate = 96)
+#' convert_well(c(1, 24), "to_well", plate = 96)
+#' convert_well(2, "to_well", plate = 96, wise = "col")
 #' @export
 convert_well <- function(input, direction, plate = 96, wise = "row") {
   # Check the validity of the wise parameter
@@ -25,8 +29,9 @@ convert_well <- function(input, direction, plate = 96, wise = "row") {
 
     # Extract the alphabetic row and numeric column parts of the well
     # identifiers (handles multi-letter rows such as "AA1" on 1536-well plates).
-    rows <- toupper(stringr::str_extract(input, "^[A-Za-z]+"))
-    cols <- as.numeric(stringr::str_extract(input, "[0-9]+$"))
+    parsed <- parse_wells(input)
+    rows <- parsed$row
+    cols <- parsed$col
 
     if (any(is.na(rows)) || any(is.na(cols))) {
       stop("Some well labels are not in the form <letters><digits> (e.g. \"A01\").", call. = FALSE)
@@ -52,6 +57,9 @@ convert_well <- function(input, direction, plate = 96, wise = "row") {
     # Convert numeric index to well label
     if (!is.numeric(input)) {
       stop("Input for 'to_well' conversion must be a numeric vector.")
+    }
+    if (anyNA(input) || any(input != round(input))) {
+      stop("Numeric indices must be whole numbers.", call. = FALSE)
     }
     # Make sure every index is within plate bounds
     max_index <- plate_size$rowmax * plate_size$colmax

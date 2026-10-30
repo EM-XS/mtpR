@@ -17,3 +17,7 @@ test_that("malformed input is rejected", {
   expect_error(to_rows_columns(list(w = "A1"), "w"), "dataframe")
   expect_error(to_rows_columns(data.frame(w = "A1"), c("w", "x")), "single character string")
 })
+
+test_that("a missing column gives a clear error", {
+  expect_error(to_rows_columns(data.frame(a = "A1"), "well"), "Column 'well' not found")
+})

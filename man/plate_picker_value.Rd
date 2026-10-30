@@ -7,16 +7,16 @@
 plate_picker_value(x)
 }
 \arguments{
-\item{x}{The input value: that list, a data frame with `well` and `label`,
-or `NULL` (no wells painted).}
+\item{x}{The input value: that list, a data frame with \code{well} and \code{label},
+or \code{NULL} (no wells painted).}
 }
 \value{
-A data frame with character columns `well` and `label`.
+A data frame with character columns \code{well} and \code{label}.
 }
 \description{
-In Shiny, `input$<id>` of a [plate_picker()] arrives as a list with the
-elements `well` and `label`, each a list of strings. This returns a data
-frame with columns `well` and `label`, sorted in plate order (a well with
+In Shiny, \verb{input$<id>} of a \code{\link[=plate_picker]{plate_picker()}} arrives as a list with the
+elements \code{well} and \code{label}, each a list of strings. This returns a data
+frame with columns \code{well} and \code{label}, sorted in plate order (a well with
 several labels gets one row per label).
 }
 \examples{

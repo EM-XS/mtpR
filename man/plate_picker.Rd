@@ -22,19 +22,19 @@ plate_picker(
 )
 }
 \arguments{
-\item{plate}{Plate size, one of the sizes [platesize_check()] allows.}
+\item{plate}{Plate size, one of the sizes \code{\link[=platesize_check]{platesize_check()}} allows.}
 
 \item{labels}{Character vector of label names the user paints with, at most
-eight unless `colours` names a colour for each. `NULL` (the default) gives
-one label, `"selected"`, for plain well selection.}
+eight unless \code{colours} names a colour for each. \code{NULL} (the default) gives
+one label, \code{"selected"}, for plain well selection.}
 
-\item{value}{Initial assignments: a data frame with columns `well` and
-`label`, or a named character vector (`c(A01 = "Blank")`). With
-`labels = NULL` a bare character vector of wells also works. Wells are
-checked against the plate and normalised (`"A1"` becomes `"A01"`).}
+\item{value}{Initial assignments: a data frame with columns \code{well} and
+\code{label}, or a named character vector (\code{c(A01 = "Blank")}). With
+\code{labels = NULL} a bare character vector of wells also works. Wells are
+checked against the plate and normalised (\code{"A1"} becomes \code{"A01"}).}
 
-\item{background}{Optional data frame with columns `well` and `fill` (a
-colour), and optionally `text` and `tooltip`, drawn under the labels.}
+\item{background}{Optional data frame with columns \code{well} and \code{fill} (a
+colour), and optionally \code{text} and \code{tooltip}, drawn under the labels.}
 
 \item{locked}{Wells that cannot be painted; drawn muted.}
 
@@ -42,15 +42,15 @@ colour), and optionally `text` and `tooltip`, drawn under the labels.}
 
 \item{colours}{Optional named vector, label to colour.}
 
-\item{multiple}{If `FALSE` (default) a well holds one label and painting a
-new one replaces it; if `TRUE` a well may hold several.}
+\item{multiple}{If \code{FALSE} (default) a well holds one label and painting a
+new one replaces it; if \code{TRUE} a well may hold several.}
 
 \item{toolbar}{Show the toolbar?}
 
-\item{theme}{`"auto"` (follow `prefers-color-scheme`), `"light"` or `"dark"`.}
+\item{theme}{\code{"auto"} (follow \code{prefers-color-scheme}), \code{"light"} or \code{"dark"}.}
 
-\item{export_buttons}{`NULL` (default) shows Copy rows, Download CSV and Save
-page outside Shiny only; `TRUE` or `FALSE` forces them on or off.}
+\item{export_buttons}{\code{NULL} (default) shows Copy rows, Download CSV and Save
+page outside Shiny only; \code{TRUE} or \code{FALSE} forces them on or off.}
 
 \item{width, height}{Widget size. The default width is the container width
 and the height follows from it.}
@@ -63,7 +63,7 @@ An 'htmlwidgets' object.
 \description{
 An 'htmlwidgets' plate map you click or drag across to give wells labels
 ("paint" them). It works in Shiny, in R Markdown and the RStudio viewer, and
-as a standalone offline HTML file ([plate_picker_html()]).
+as a standalone offline HTML file (\code{\link[=plate_picker_html]{plate_picker_html()}}).
 }
 \details{
 The widget is a plain SVG grid with row letters and column numbers as
@@ -81,29 +81,29 @@ Enter toggles the focused well and Escape cancels a stroke in progress.
 
 Labels get a fixed colour-blind-safer palette (eight hues, in a fixed order).
 There are only eight default colours, so more than eight labels is an error
-unless `colours` gives a colour for every label.
+unless \code{colours} gives a colour for every label.
 }
 
 \section{Painting over a background}{
 
-`background` fills the wells themselves (for example a host app's reaction
+\code{background} fills the wells themselves (for example a host app's reaction
 colours). A painted label is drawn on top as a rounded chip in the label's
 colour with a surface-coloured halo and a thin edge, so it stays readable on
-any background and at 384 and 1536 wells. With `multiple = TRUE` a well
+any background and at 384 and 1536 wells. With \code{multiple = TRUE} a well
 holding several labels shows the chip split into stacked stripes. Background
-`text` is printed over the chip when the wells are big enough (about 24 px).
+\code{text} is printed over the chip when the wells are big enough (about 24 px).
 }
 
 \section{Shiny}{
 
-The widget sets `input$<id>` to the assignments at the end of every stroke,
+The widget sets \verb{input$<id>} to the assignments at the end of every stroke,
 header click, undo, redo and clear (not on every pointer move), and
-`input$<id>_active` to the active label when it changes. Shiny delivers the
-assignments as a *list* of `well` and `label` vectors (each itself a list);
-turn it into a data frame with [plate_picker_value()]. Use
-[update_plate_picker()] to change the painting without re-rendering. The
+\verb{input$<id>_active} to the active label when it changes. Shiny delivers the
+assignments as a \emph{list} of \code{well} and \code{label} vectors (each itself a list);
+turn it into a data frame with \code{\link[=plate_picker_value]{plate_picker_value()}}. Use
+\code{\link[=update_plate_picker]{update_plate_picker()}} to change the painting without re-rendering. The
 Copy rows, Download CSV and Save page buttons are hidden in Shiny unless
-`export_buttons = TRUE`.
+\code{export_buttons = TRUE}.
 }
 
 \examples{
@@ -122,6 +122,7 @@ if (interactive()) {
 }
 }
 \seealso{
-[plate_picker_html()], [read_plate_picker()], [plate_picker_value()],
-  [update_plate_picker()]
+\code{\link[=plate_picker_html]{plate_picker_html()}}, \code{\link[=read_plate_picker]{read_plate_picker()}}, \code{\link[=plate_picker_value]{plate_picker_value()}},
+\code{\link[=update_plate_picker]{update_plate_picker()}}. \code{\link[=design_plate]{design_plate()}} lays wells out from rules instead
+of by hand.
 }

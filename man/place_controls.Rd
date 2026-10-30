@@ -23,95 +23,95 @@ place_controls(
 )
 }
 \arguments{
-\item{plate}{Plate size (see [platesize_check()]), or the result of an
-earlier `place_controls()` call to add more controls to.}
+\item{plate}{Plate size (see \code{\link[=platesize_check]{platesize_check()}}), or the result of an
+earlier \code{place_controls()} call to add more controls to.}
 
-\item{method}{`"fixed"`, `"lines"`, `"edge"`, `"spread"`, `"random"`,
-`"quadrant"` or (deprecated) `"every"`.}
+\item{method}{\code{"fixed"}, \code{"lines"}, \code{"edge"}, \code{"spread"}, \code{"random"},
+\code{"quadrant"} or (deprecated) \code{"every"}.}
 
-\item{wells}{Well labels and ranges for `method = "fixed"`.}
+\item{wells}{Well labels and ranges for \code{method = "fixed"}.}
 
-\item{lines}{Columns (or rows) for `method = "lines"`: numbers, or row letters
-when `by = "row"`.}
+\item{lines}{Columns (or rows) for \code{method = "lines"}: numbers, or row letters
+when \code{by = "row"}.}
 
-\item{every}{Spacing for `method = "every"`: 2 reserves every second column.}
+\item{every}{Spacing for \code{method = "every"}: 2 reserves every second column.}
 
-\item{by}{`"column"` or `"row"`, for `method = "lines"` and `"every"`.}
+\item{by}{\code{"column"} or \code{"row"}, for \code{method = "lines"} and \code{"every"}.}
 
-\item{offset}{First column (row) reserved by `method = "every"`.}
+\item{offset}{First column (row) reserved by \code{method = "every"}.}
 
-\item{depth}{Number of rings for `method = "edge"` (1 = outermost ring only).}
+\item{depth}{Number of rings for \code{method = "edge"} (1 = outermost ring only).}
 
-\item{n}{Number of wells for `method = "spread"` and `"random"`.}
+\item{n}{Number of wells for \code{method = "spread"} and \code{"random"}.}
 
-\item{among}{For `method = "spread"`: the number of reaction wells the
-controls are spread among. `NULL` spreads over the whole plate from `start`.}
+\item{among}{For \code{method = "spread"}: the number of reaction wells the
+controls are spread among. \code{NULL} spreads over the whole plate from \code{start}.}
 
-\item{start}{For `method = "spread"`: the well (label or position number in
+\item{start}{For \code{method = "spread"}: the well (label or position number in
 fill order) where the block starts. Default: the first well.}
 
-\item{quadrant}{Quadrant(s), 1 to 4, for `method = "quadrant"`.}
+\item{quadrant}{Quadrant(s), 1 to 4, for \code{method = "quadrant"}.}
 
-\item{seed}{Random seed for `method = "random"`. If `NULL` one is drawn; the
-seed used is stored in `attr(result, "seed")`.}
+\item{seed}{Random seed for \code{method = "random"}. If \code{NULL} one is drawn; the
+seed used is stored in \code{attr(result, "seed")}.}
 
-\item{name}{Name of the control, stored in the `Control` column. One value,
-or one per well for `method = "fixed"`.}
+\item{name}{Name of the control, stored in the \code{Control} column. One value,
+or one per well for \code{method = "fixed"}.}
 
-\item{wise}{`"row"` or `"col"`: the direction `Well.Index` runs along the
-plate, which is also the fill direction for `method = "spread"`.}
+\item{wise}{\code{"row"} or \code{"col"}: the direction \code{Well.Index} runs along the
+plate, which is also the fill direction for \code{method = "spread"}.}
 }
 \value{
-A data frame of class `mtpr_plate` with one row per well and the
-  columns `Well`, `Row`, `Column`, `Well.Index`, `Role` and `Control`
-  (`NA` for wells that are not controls).
+A data frame of class \code{mtpr_plate} with one row per well and the
+columns \code{Well}, \code{Row}, \code{Column}, \code{Well.Index}, \code{Role} and \code{Control}
+(\code{NA} for wells that are not controls).
 }
 \description{
 Reserves wells on a plate before reactions are placed. The result is the
-whole plate, one row per well, with a `Role` column: `"control"` for the
-reserved wells and `"empty"` for the rest. Pass it to
-[replicate_reactions()] as `reserved` so that reactions flow around the
-controls, then use [plate_roles()] to mark the wells that reactions took.
+whole plate, one row per well, with a \code{Role} column: \code{"control"} for the
+reserved wells and \code{"empty"} for the rest. Pass it to
+\code{\link[=replicate_reactions]{replicate_reactions()}} as \code{reserved} so that reactions flow around the
+controls, then use \code{\link[=plate_roles]{plate_roles()}} to mark the wells that reactions took.
 }
 \details{
-A count (`n`) is always a number of wells, and the place is given
-separately. Choose where the controls go with `method`:
+A count (\code{n}) is always a number of wells, and the place is given
+separately. Choose where the controls go with \code{method}:
+\itemize{
+\item \code{"fixed"}: the wells listed in \code{wells}. Single wells (\code{"A01"} or \code{"A1"})
+and rectangular ranges (\code{"A01:H01"}, \code{"A01:B12"}) can be mixed.
+\item \code{"lines"}: whole columns (or rows, with \code{by = "row"}), e.g.
+\code{lines = c(1, 24)}. Rows can be given as letters (\code{c("A", "P")}) or numbers.
+\item \code{"edge"}: the outer ring of the plate; \code{depth = 2} reserves the outer two
+rings, and so on.
+\item \code{"spread"}: \code{n} wells spread evenly (see below).
+\item \code{"random"}: \code{n} wells drawn at random; the same \code{seed} gives the same wells.
+\item \code{"quadrant"}: every well in quadrant(s) \code{quadrant} (1-4) of the 2x2
+squares that tile the plate; see \code{\link[=well_quadrant]{well_quadrant()}}. Several quadrants can
+be given.
+\item \code{"every"}: deprecated, and will be removed in mtpR 0.5.0. Use \code{"lines"} for
+whole columns or rows, or \code{"spread"} for \code{n} wells spread out.
+}
 
-* `"fixed"`: the wells listed in `wells`. Single wells (`"A01"` or `"A1"`)
-  and rectangular ranges (`"A01:H01"`, `"A01:B12"`) can be mixed.
-* `"lines"`: whole columns (or rows, with `by = "row"`), e.g.
-  `lines = c(1, 24)`. Rows can be given as letters (`c("A", "P")`) or numbers.
-* `"edge"`: the outer ring of the plate; `depth = 2` reserves the outer two
-  rings, and so on.
-* `"spread"`: `n` wells spread evenly (see below).
-* `"random"`: `n` wells drawn at random; the same `seed` gives the same wells.
-* `"quadrant"`: every well in quadrant(s) `quadrant` (1-4) of the 2x2
-  squares that tile the plate; see [well_quadrant()]. Several quadrants can
-  be given.
-* `"every"`: deprecated. Use `"lines"` for whole columns or rows, or
-  `"spread"` for `n` wells spread out.
-
-Calls can be chained: give an earlier result as `plate` to reserve more
+Calls can be chained: give an earlier result as \code{plate} to reserve more
 wells. If a later call takes a well that an earlier call already reserved,
-a warning says so and the later call wins (its `name` is kept).
+a warning says so and the later call wins (its \code{name} is kept).
 }
 \section{Spreading controls among reactions}{
 
-`"spread"` puts `n` controls at evenly spaced places among the reactions, in
-fill order. Take the block of `n + among` free wells that starts at `start`
-(free means not already a control; the plate is read in the direction `wise`).
-Control number `k` (1 to `n`) is the one that follows the
-`floor(k * among / n)`-th reaction. So 8 controls among 40 reactions fall
+\code{"spread"} puts \code{n} controls at evenly spaced places among the reactions, in
+fill order. Take the block of \code{n + among} free wells that starts at \code{start}
+(free means not already a control; the plate is read in the direction \code{wise}).
+Control number \code{k} (1 to \code{n}) is the one that follows the
+\code{floor(k * among / n)}-th reaction. So 8 controls among 40 reactions fall
 after every 5th reaction, and the block ends on a control:
 
-```
-R R R R R C R R R R R C ...   (5 reactions, then a control)
-```
+\if{html}{\out{<div class="sourceCode">}}\preformatted{R R R R R C R R R R R C ...   (5 reactions, then a control)
+}\if{html}{\out{</div>}}
 
-With `among = NULL`, the controls are spread over all free wells from `start`
+With \code{among = NULL}, the controls are spread over all free wells from \code{start}
 to the end of the plate (default: the whole plate). To place controls among
-reactions in one go, use `controls_spread` in [replicate_reactions()], which
-fills in `among` and `start` for you.
+reactions in one go, use \code{controls_spread} in \code{\link[=replicate_reactions]{replicate_reactions()}}, which
+fills in \code{among} and \code{start} for you.
 }
 
 \examples{
