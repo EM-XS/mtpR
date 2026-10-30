@@ -10,8 +10,8 @@ read_plate_picker(file)
 \item{file}{Path to the CSV or HTML file.}
 }
 \value{
-A data frame with character columns \code{well} and \code{label}, in plate
-order, plus any \code{group} and attribute columns.
+A data frame with one row per well, in plate order: a character column
+\code{well}, then a column for each feature and attribute.
 }
 \description{
 Reads either a CSV downloaded with the widget's Export button or a page

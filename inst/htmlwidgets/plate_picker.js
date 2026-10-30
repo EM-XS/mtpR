@@ -37,7 +37,6 @@
 
   function createPicker(el, x) {
     var id = 'mtprp' + (++uid);
-    var multiple = !!x.multiple;
     var standalone = !inShiny();
     var showExport = x.exportButtons === 'auto' || x.exportButtons == null ? standalone : !!x.exportButtons;
     var editable = x.editable !== false && x.toolbar !== false;
@@ -52,22 +51,22 @@
     }
     setPlateSize(x.plate);
 
-    var labels = [], attrNames = [], attrTypes = {}, groupSettings = {};
-    var fill = 'label', logScale = false, wellText = true;
+    var labels = [], attrNames = [], attrTypes = {}, features = {};
+    var fill = null, logScale = false, wellText = true;
     var assign = [], locked = [], bgFill = [], bgText = [], bgTip = [], bgData = null;
-    var active = 0, activeGroup = null, eraser = false;
+    var active = 0, seqFeature = null, eraser = false;
     var undoStack = [], redoStack = [];
     var drag = null;
     var focusIdx = 0;
     var title = x.title || null;
     var lastCall = '';
 
-    function newGroup() { return { sequence: false, pattern: 'grouped', num_replicates: 1, inter_spacing: 1, intra_spacing: 1, fill_wise: 'row' }; }
-    function syncGroups() { labels.forEach(function (l) { if (l.group != null && !groupSettings[l.group]) groupSettings[l.group] = newGroup(); }); }
-    // `d` has parallel `labels`, `colours` and `groups`, and `attributes`: one
-    // array per attribute, in label order.
+    function newFeature() { return { scale: 'auto', sequence: false, pattern: 'grouped', num_replicates: 1, inter_spacing: 1, intra_spacing: 1, fill_wise: 'row' }; }
+    function syncFeatures() { labels.forEach(function (l) { if (!features[l.feature]) features[l.feature] = newFeature(); }); }
+    // `d` has parallel `labels`, `colours` and `features`, and `attributes`: one
+    // array per attribute, in label order. A label with no feature is in `label`.
     function setLabels(d) {
-      var names = arr(d.labels), cols = arr(d.colours), groups = arr(d.groups), at = d.attributes || {};
+      var names = arr(d.labels), cols = arr(d.colours), feats = arr(d.features), at = d.attributes || {};
       attrNames = Object.keys(at);
       attrTypes = d.attributeTypes ? clone(d.attributeTypes) : {};
       attrNames.forEach(function (a) {
@@ -76,23 +75,36 @@
       labels = names.map(function (name, k) {
         var attrs = {};
         attrNames.forEach(function (a) { var v = arr(at[a])[k]; attrs[a] = v == null ? null : v; });
-        return { name: String(name), colour: cols[k] || core.nextColour(cols), group: groups[k] == null || groups[k] === '' ? null : String(groups[k]), attrs: attrs };
+        return { name: String(name), colour: cols[k] || core.nextColour(cols), feature: feats[k] == null || feats[k] === '' ? 'label' : String(feats[k]), attrs: attrs };
       });
-      syncGroups();
+      syncFeatures();
+    }
+    function labelIn(feature, name) {
+      for (var k = 0; k < labels.length; k++) if (labels[k].feature === feature && labels[k].name === name) return k;
+      return -1;
     }
     function labelIndex(name) {
       for (var k = 0; k < labels.length; k++) if (labels[k].name === name) return k;
       return -1;
     }
+    function fixFill() {
+      if (!features[fill] && attrNames.indexOf(fill) < 0) fill = Object.keys(features)[0] || null;
+    }
     function emptyAssign() { var a = []; for (var i = 0; i < N; i++) a.push([]); return a; }
+    // `v` is column-wise: `well`, then a column per feature. Other columns (the
+    // attributes in a saved value) are skipped. A `label` column that is not a
+    // feature names labels of any feature, one per row.
     function setValue(v) {
       assign = emptyAssign();
-      var ws = arr(v && v.well), ls = arr(v && v.label);
-      for (var j = 0; j < ws.length; j++) {
-        var wi = index[ws[j]], k = labelIndex(ls[j]);
-        if (wi != null && k >= 0 && assign[wi].indexOf(k) < 0) assign[wi].push(k);
-      }
-      assign.forEach(function (a) { a.sort(function (p, q) { return p - q; }); if (!multiple && a.length > 1) a.length = 1; });
+      var ws = arr(v && v.well);
+      Object.keys(v || {}).forEach(function (col) {
+        if (col === 'well' || (!features[col] && col !== 'label')) return;
+        arr(v[col]).forEach(function (val, j) {
+          if (val == null || val === '') return;
+          var wi = index[ws[j]], k = features[col] ? labelIn(col, String(val)) : labelIndex(String(val));
+          if (wi != null && k >= 0) add(wi, k);
+        });
+      });
     }
     function setLocked(v) {
       locked = [];
@@ -114,56 +126,64 @@
     }
 
     // A page saved by the widget keeps its painting, labels and plate in a JSON
-    // block. Version 1 blocks hold only the painting.
+    // block. Blocks before version 3 hold only a painting of well and label.
     setLabels(x);
-    fill = x.fill || 'label';
+    fill = x.fill;
     var initial = x.value, initialLocked = x.locked;
     var stateEl = document.getElementById(STATE_ID);
     if (standalone && stateEl) {
       try {
         var st = JSON.parse(stateEl.textContent);
-        if (st && st.version >= 2) {
+        if (st && st.version >= 3) {
           setPlateSize(st.plate); setLabels(st);
-          groupSettings = st.groupSettings || {}; syncGroups();
-          fill = st.fill || 'label'; logScale = !!st.log;
+          features = st.featureSettings || {}; syncFeatures();
+          fill = st.fill; logScale = !!st.log;
           initial = st.assignments; initialLocked = st.locked;
-        } else if (st && st.plate === x.plate && st.assignments) initial = st.assignments;
+        } else if (st && st.plate === x.plate && st.assignments) initial = { well: st.assignments.well, label: st.assignments.label };
         if (st && st.title && !title) title = st.title;
       } catch (e) { /* keep the widget data */ }
     }
-    if (fill !== 'label' && fill !== 'group' && attrNames.indexOf(fill) < 0) fill = 'label';
+    fixFill();
     active = Math.max(0, labelIndex(x.active));
     setValue(initial); setLocked(initialLocked); setBackground(x.background);
 
     // Undo covers the painting, the labels and the plate.
     function snapshot() {
-      return { plate: plate, assign: clone(assign), locked: locked.slice(), labels: clone(labels), attrNames: attrNames.slice(), attrTypes: clone(attrTypes), groupSettings: clone(groupSettings) };
+      return { plate: plate, assign: clone(assign), locked: locked.slice(), labels: clone(labels), attrNames: attrNames.slice(), attrTypes: clone(attrTypes), features: clone(features) };
     }
     function sameSnap(a, b) { return JSON.stringify(a) === JSON.stringify(b); }
     function restore(s) {
       var replot = s.plate !== plate;
       if (replot) setPlateSize(s.plate);
       assign = clone(s.assign); locked = s.locked.slice(); labels = clone(s.labels);
-      attrNames = s.attrNames.slice(); attrTypes = clone(s.attrTypes); groupSettings = clone(s.groupSettings);
+      attrNames = s.attrNames.slice(); attrTypes = clone(s.attrTypes); features = clone(s.features);
       active = Math.min(active, labels.length - 1);
-      if (activeGroup != null && !groupSettings[activeGroup]) activeGroup = null;
-      if (attrNames.indexOf(fill) < 0 && fill !== 'label' && fill !== 'group') fill = 'label';
+      if (seqFeature != null && !features[seqFeature]) seqFeature = null;
+      fixFill();
       if (replot) { setBackground(bgData); buildGrid(); }
       redraw();
     }
 
     // ---- editing primitives ---------------------------------------------
     function has(i, k) { return assign[i].indexOf(k) >= 0; }
+    // A well holds one label per feature, so a label replaces its feature's old one.
     function add(i, k) {
-      if (multiple) { if (!has(i, k)) { assign[i].push(k); assign[i].sort(function (p, q) { return p - q; }); return true; } return false; }
-      if (assign[i].length === 1 && assign[i][0] === k) return false;
-      assign[i] = [k]; return true;
+      if (has(i, k)) return false;
+      var f = labels[k].feature;
+      assign[i] = assign[i].filter(function (v) { return labels[v].feature !== f; });
+      assign[i].push(k); assign[i].sort(function (p, q) { return p - q; });
+      return true;
     }
     function remove(i, k) { var n = assign[i].length; assign[i] = assign[i].filter(function (v) { return v !== k; }); return assign[i].length !== n; }
-    function clearWell(i) { if (!assign[i].length) return false; assign[i] = []; return true; }
+    // The eraser works on the active feature only.
+    function eraseWell(i) {
+      var f = labels[active].feature, n = assign[i].length;
+      assign[i] = assign[i].filter(function (v) { return labels[v].feature !== f; });
+      return assign[i].length !== n;
+    }
     function applyMode(i, mode) {
       if (i < 0 || locked[i]) return false;
-      var ch = mode === 'add' ? add(i, active) : mode === 'remove' ? remove(i, active) : clearWell(i);
+      var ch = mode === 'add' ? add(i, active) : mode === 'remove' ? remove(i, active) : eraseWell(i);
       if (ch) renderCell(i);
       return ch;
     }
@@ -262,8 +282,6 @@
       var defs = sv('defs', {}, svg);
       var pat = sv('pattern', { id: 'mtpr-hatch', width: 8, height: 8, patternUnits: 'userSpaceOnUse', patternTransform: 'rotate(45)' }, defs);
       sv('line', { x1: 0, y1: 0, x2: 0, y2: 8, 'class': 'mtpr-hatch-line' }, pat);
-      var clip = sv('clipPath', { id: id + '-clip', clipPathUnits: 'objectBoundingBox' }, defs);
-      sv('rect', { width: 1, height: 1, rx: 0.22, ry: 0.22 }, clip);
       colHdrs = []; rowHdrs = []; cellEls = []; chipLayers = []; bases = [];
       var hrow = sv('g', { role: 'row', 'aria-rowindex': 1 }, svg);
       for (var cc = 0; cc < ncol; cc++) {
@@ -296,10 +314,10 @@
     // ---- rendering -------------------------------------------------------
     var scale = 1, bgTextOn = true, fillNow = null;
     function model() {
-      return { info: info, plate: plate, wells: wells, assign: assign, labels: labels, attrNames: attrNames, attrTypes: attrTypes, fill: fill, log: logScale };
+      return { info: info, plate: plate, wells: wells, assign: assign, labels: labels, features: features, attrNames: attrNames, attrTypes: attrTypes, fill: fill, log: logScale };
     }
     function cellPos(i) { var p = rcOf(i); return [PAD + HDR_W + p[1] * CELL, PAD + HDR_H + p[0] * CELL]; }
-    function labelNames(i) { return assign[i].map(function (k) { return labels[k].name; }).join(' + '); }
+    function labelNames(i) { return assign[i].map(function (k) { return labels[k].feature + ' ' + labels[k].name; }).join(', '); }
     function describe(i) {
       var s = wells[i];
       if (assign[i].length) s += ', ' + labelNames(i);
@@ -316,21 +334,15 @@
       g.setAttribute('aria-selected', assign[i].length ? 'true' : 'false');
       if (locked[i]) g.setAttribute('aria-disabled', 'true'); else g.removeAttribute('aria-disabled');
       g.setAttribute('aria-label', describe(i));
-      var ins = CELL * (fill === 'label' ? 0.2 : 0.08), sz = CELL - 2 * ins, cx = p[0] + ins, cy = p[1] + ins, a = assign[i];
-      var colour = function (k) { return fillNow.colour[k] || core.FILL_NA; };
+      var ins = CELL * (fillNow.isFeature && fillNow.type === 'discrete' ? 0.2 : 0.08);
+      var sz = CELL - 2 * ins, cx = p[0] + ins, cy = p[1] + ins, a = assign[i];
       if (locked[i]) sv('rect', { 'class': 'mtpr-lockfill', x: p[0], y: p[1], width: CELL, height: CELL }, layer);
+      var k = a.length ? core.wellPick(a, fillNow) : -1;
       if (a.length) {
         sv('rect', { 'class': 'mtpr-halo', x: cx - 1.5, y: cy - 1.5, width: sz + 3, height: sz + 3, rx: 7, ry: 7 }, layer);
-        if (a.length === 1) {
-          sv('rect', { 'class': 'mtpr-chip', x: cx, y: cy, width: sz, height: sz, rx: 6, ry: 6, fill: colour(a[0]) }, layer);
-        } else {
-          var cg2 = sv('g', { 'clip-path': 'url(#' + id + '-clip)' }, layer);
-          var bh = sz / a.length;
-          a.forEach(function (k, n) { sv('rect', { x: cx, y: cy + n * bh, width: sz, height: bh + 0.3, fill: colour(k) }, cg2); });
-          sv('rect', { 'class': 'mtpr-chip', x: cx, y: cy, width: sz, height: sz, rx: 6, ry: 6, fill: 'none' }, layer);
-        }
+        sv('rect', { 'class': 'mtpr-chip', x: cx, y: cy, width: sz, height: sz, rx: 6, ry: 6, fill: k < 0 ? core.FILL_NA : fillNow.colour[k] }, layer);
       }
-      var text = bgText[i] || (wellText && a.length === 1 ? shortText(fillNow.text[a[0]]) : null);
+      var text = bgText[i] || (wellText && k >= 0 && fillNow.text[k] ? shortText(fillNow.text[k]) : null);
       if (text) {
         var t = sv('text', { 'class': 'mtpr-bgtext', x: p[0] + CELL / 2, y: p[1] + CELL / 2 + 0.5 }, layer);
         t.textContent = text;
@@ -364,8 +376,7 @@
     function renderFillControls() {
       if (!fillSelect) return;
       while (fillSelect.firstChild) fillSelect.removeChild(fillSelect.firstChild);
-      var options = ['label'].concat(Object.keys(groupSettings).length ? ['group'] : [], attrNames);
-      options.forEach(function (o) { h('option', { value: o }, fillSelect, o); });
+      Object.keys(features).concat(attrNames).forEach(function (o) { h('option', { value: o }, fillSelect, o); });
       fillSelect.value = fill;
       var numeric = fillNow.type === 'continuous';
       logBtn.classList.toggle('mtpr-hide', !numeric);
@@ -374,7 +385,7 @@
     }
     function renderLegend() {
       while (legendEl.firstChild) legendEl.removeChild(legendEl.firstChild);
-      if (fill === 'label') return;
+      if (!fillNow.keys.length && fillNow.type === 'discrete') return;
       h('strong', {}, legendEl, fill);
       if (fillNow.type === 'continuous') {
         h('span', {}, legendEl, String(fillNow.low));
@@ -387,7 +398,7 @@
           h('span', {}, item, key.name);
         });
       }
-      if (fillNow.colour.indexOf(null) >= 0) {
+      if (assign.some(function (a) { return a.length && core.wellPick(a, fillNow) < 0; })) {
         var na = h('span', { 'class': 'mtpr-legend-key' }, legendEl);
         h('span', { 'class': 'mtpr-swatch' }, na).style.background = core.FILL_NA;
         h('span', {}, na, 'NA');
@@ -395,7 +406,7 @@
     }
 
     // ---- labels and groups -----------------------------------------------
-    var editing = null;   // label index or group name being edited
+    var editing = null;   // label index, or 'feature:' and its name, being edited
     function textInput(parent, name, value, onChange) {
       var lab = h('label', { 'class': 'mtpr-field' }, parent, name);
       var input = h('input', { type: 'text', 'class': 'mtpr-input' }, lab);
@@ -423,14 +434,24 @@
     function renderLabelEditor(parent, k) {
       var l = labels[k], box = h('div', { 'class': 'mtpr-editor' }, parent);
       textInput(box, 'label', l.name, function (v, input) {
-        if (!v || (v !== l.name && labelIndex(v) >= 0)) { input.value = l.name; say('Labels must be unique and not empty.'); return; }
+        if (!v || (v !== l.name && labelIn(l.feature, v) >= 0)) { input.value = l.name; say('Labels must be unique in a feature and not empty.'); return; }
         changeModel(function () { l.name = v; });
       });
-      var groupInput = textInput(box, 'group', l.group, function (v) { changeModel(function () { l.group = v || null; syncGroups(); }); });
-      var listId = id + '-groups';
-      groupInput.setAttribute('list', listId);
+      var featureInput = textInput(box, 'feature', l.feature, function (v, input) {
+        if (!v || !nameFree(v, l.feature, true) || labelIn(v, l.name) >= 0) { input.value = l.feature; say('Choose a feature that does not already have this label.'); return; }
+        changeModel(function () {
+          l.feature = v; syncFeatures();
+          // Moving a label can put two of one feature in a well; the first stays.
+          assign = assign.map(function (a) {
+            var seen = {};
+            return a.filter(function (q) { var f = labels[q].feature; if (seen[f]) return false; seen[f] = true; return true; });
+          });
+        });
+      });
+      var listId = id + '-features';
+      featureInput.setAttribute('list', listId);
       var list = h('datalist', { id: listId }, box);
-      Object.keys(groupSettings).forEach(function (g) { h('option', { value: g }, list); });
+      Object.keys(features).forEach(function (g) { h('option', { value: g }, list); });
       var colLab = h('label', { 'class': 'mtpr-field' }, box, 'colour');
       var colInput = h('input', { type: 'color', 'class': 'mtpr-colour' }, colLab);
       colInput.value = l.colour.toLowerCase();
@@ -446,57 +467,75 @@
         input.focus();
         input.addEventListener('change', function () {
           var v = input.value.trim();
-          if (!v || attrNames.indexOf(v) >= 0 || ['well', 'label', 'group'].indexOf(v) >= 0) { say('Attribute names must be new, and not well, label or group.'); return; }
+          if (!nameFree(v)) { say('Attribute names must be new, and not well.'); return; }
           changeModel(function () { attrNames.push(v); attrTypes[v] = 'number'; labels.forEach(function (o) { o.attrs[v] = null; }); });
         });
       });
       h('button', { type: 'button', 'class': 'mtpr-btn' }, actions, 'Delete label').addEventListener('click', function () { deleteLabel(k); });
     }
+    // Features and attributes share one table, so their names must differ.
+    function nameFree(v, except, featureOk) {
+      if (!v || v === 'well' || attrNames.indexOf(v) >= 0) return false;
+      return v === except || featureOk || !features[v];
+    }
+    function dropLabels(gone) {
+      var map = [], kept = [];
+      labels.forEach(function (l, k) { if (gone(l, k)) map.push(-1); else { map.push(kept.length); kept.push(l); } });
+      var name = labels[active];
+      assign = assign.map(function (a) {
+        return a.map(function (v) { return map[v]; }).filter(function (v) { return v >= 0; });
+      });
+      labels = kept;
+      active = Math.max(0, labels.indexOf(name));
+      editing = null;
+    }
     function deleteLabel(k) {
       if (labels.length < 2) { say('Keep at least one label.'); return; }
       var name = labels[k].name;
-      changeModel(function () {
-        labels.splice(k, 1);
-        assign = assign.map(function (a) {
-          return a.filter(function (v) { return v !== k; }).map(function (v) { return v > k ? v - 1 : v; });
-        });
-        if (active >= labels.length) active = labels.length - 1;
-        else if (active > k) active--;
-        editing = null;
-      });
+      changeModel(function () { dropLabels(function (l, n) { return n === k; }); });
       say('Deleted ' + name + '. Undo brings it back.');
     }
-    function addLabel(group) {
-      var n = labels.length + 1, name = 'Label ' + n;
-      while (labelIndex(name) >= 0) name = 'Label ' + (++n);
+    function addLabel(feature) {
+      feature = feature || (labels[active] ? labels[active].feature : 'label');
+      var n = 1, name = 'Label ' + n;
+      while (labelIn(feature, name) >= 0) name = 'Label ' + (++n);
       changeModel(function () {
         var attrs = {}; attrNames.forEach(function (a) { attrs[a] = null; });
-        labels.push({ name: name, colour: core.nextColour(labels.map(function (l) { return l.colour; })), group: group || null, attrs: attrs });
-        active = labels.length - 1; activeGroup = null; eraser = false; editing = active;
+        if (!features[feature]) features[feature] = newFeature();
+        labels.push({ name: name, colour: core.nextColour(labels.map(function (l) { return l.colour; })), feature: feature, attrs: attrs });
+        active = labels.length - 1; seqFeature = null; eraser = false; editing = active;
+        if (features[fill]) fill = feature;
       });
     }
-    function addGroup() {
-      var n = Object.keys(groupSettings).length + 1, name = 'Group ' + n;
-      while (groupSettings[name]) name = 'Group ' + (++n);
-      changeModel(function () { groupSettings[name] = newGroup(); editing = 'group:' + name; });
+    function addFeature() {
+      var n = Object.keys(features).length + 1, name = 'feature_' + n;
+      while (features[name]) name = 'feature_' + (++n);
+      changeModel(function () { features[name] = newFeature(); editing = 'feature:' + name; });
     }
-    function renameGroup(oldName, v, input) {
-      if (!v || (v !== oldName && groupSettings[v])) { input.value = oldName; say('Group names must be unique and not empty.'); return; }
+    function renameFeature(oldName, v, input) {
+      if (!nameFree(v, oldName)) { input.value = oldName; say('Feature names must be new, and not well.'); return; }
       changeModel(function () {
         var next = {};
-        Object.keys(groupSettings).forEach(function (g) { next[g === oldName ? v : g] = groupSettings[g]; });
-        groupSettings = next;
-        labels.forEach(function (l) { if (l.group === oldName) l.group = v; });
-        if (activeGroup === oldName) activeGroup = v;
-        editing = 'group:' + v;
+        Object.keys(features).forEach(function (g) { next[g === oldName ? v : g] = features[g]; });
+        features = next;
+        labels.forEach(function (l) { if (l.feature === oldName) l.feature = v; });
+        if (seqFeature === oldName) seqFeature = v;
+        if (fill === oldName) fill = v;
+        editing = 'feature:' + v;
       });
     }
-    function deleteGroup(g) {
+    function deleteFeature(g) {
+      if (Object.keys(features).length < 2 || labels.every(function (l) { return l.feature === g; })) { say('Keep at least one feature with a label.'); return; }
       changeModel(function () {
-        delete groupSettings[g];
-        labels.forEach(function (l) { if (l.group === g) l.group = null; });
-        if (activeGroup === g) activeGroup = null;
-        editing = null;
+        delete features[g];
+        dropLabels(function (l) { return l.feature === g; });
+        if (seqFeature === g) seqFeature = null;
+      });
+      say('Deleted the feature ' + g + ' and its labels. Undo brings them back.');
+    }
+    function clearFeature(g) {
+      changeModel(function () {
+        for (var i = 0; i < N; i++) if (!locked[i]) assign[i] = assign[i].filter(function (v) { return labels[v].feature !== g; });
       });
     }
     function numberField(parent, name, g, key) {
@@ -516,39 +555,48 @@
       select.value = g[key];
       select.addEventListener('change', function () { changeModel(function () { g[key] = select.value; }); });
     }
-    function renderGroupBox(parent, name, order) {
-      var g = groupSettings[name], box = h('div', { 'class': 'mtpr-group' + (activeGroup === name ? ' mtpr-group-on' : '') }, parent);
+    function renderFeatureBox(parent, name, order) {
+      var g = features[name], box = h('div', { 'class': 'mtpr-group' + (seqFeature === name ? ' mtpr-group-on' : '') }, parent);
       var head = h('div', { 'class': 'mtpr-row' }, box);
       h('span', { 'class': 'mtpr-group-name' }, head, name);
       if (editable) {
         var seq = h('button', { type: 'button', 'class': 'mtpr-edit', 'aria-pressed': g.sequence ? 'true' : 'false' }, head, 'In sequence: ' + (g.sequence ? 'on' : 'off'));
         seq.addEventListener('click', function () {
-          changeModel(function () { g.sequence = !g.sequence; activeGroup = g.sequence ? name : activeGroup === name ? null : activeGroup; eraser = false; });
+          changeModel(function () {
+            g.sequence = !g.sequence; seqFeature = g.sequence ? name : seqFeature === name ? null : seqFeature; eraser = false;
+            if (g.sequence && features[fill]) fill = name;
+          });
         });
-        h('button', { type: 'button', 'class': 'mtpr-edit', 'aria-label': 'Edit group ' + name }, head, 'Edit').addEventListener('click', function () {
-          editing = editing === 'group:' + name ? null : 'group:' + name; renderSide(); updateToolbar();
+        h('button', { type: 'button', 'class': 'mtpr-edit', 'aria-label': 'Edit feature ' + name }, head, 'Edit').addEventListener('click', function () {
+          editing = editing === 'feature:' + name ? null : 'feature:' + name; renderSide(); updateToolbar();
         });
       }
-      if (editing === 'group:' + name) {
+      if (editing === 'feature:' + name) {
         var ed = h('div', { 'class': 'mtpr-editor' }, box);
-        textInput(ed, 'group', name, function (v, input) { renameGroup(name, v, input); });
+        textInput(ed, 'feature', name, function (v, input) { renameFeature(name, v, input); });
+        selectField(ed, 'scale', g, 'scale', ['auto', 'discrete']);
         var act = h('div', { 'class': 'mtpr-actions' }, ed);
         h('button', { type: 'button', 'class': 'mtpr-btn' }, act, 'Add label').addEventListener('click', function () { addLabel(name); });
-        h('button', { type: 'button', 'class': 'mtpr-btn' }, act, 'Delete group').addEventListener('click', function () { deleteGroup(name); });
+        h('button', { type: 'button', 'class': 'mtpr-btn' }, act, 'Clear wells').addEventListener('click', function () { clearFeature(name); });
+        h('button', { type: 'button', 'class': 'mtpr-btn' }, act, 'Delete feature').addEventListener('click', function () { deleteFeature(name); });
       }
-      labels.forEach(function (l, k) { if (l.group === name) renderLabelRow(box, k, order.indexOf(k)); });
+      labels.forEach(function (l, k) { if (l.feature === name) renderLabelRow(box, k, order.indexOf(k)); });
       if (g.sequence) {
         var ctl = h('div', { 'class': 'mtpr-editor' }, box);
-        if (activeGroup !== name) {
-          h('button', { type: 'button', 'class': 'mtpr-btn' }, ctl, 'Paint this group').addEventListener('click', function () { activeGroup = name; eraser = false; renderSide(); updateToolbar(); });
+        if (seqFeature !== name) {
+          h('button', { type: 'button', 'class': 'mtpr-btn' }, ctl, 'Paint in sequence').addEventListener('click', function () {
+            seqFeature = name; eraser = false;
+            if (features[fill]) fill = name;
+            redraw();
+          });
         }
         selectField(ctl, 'pattern', g, 'pattern', ['grouped', 'dealt']);
         numberField(ctl, 'num_replicates', g, 'num_replicates');
         numberField(ctl, 'inter_spacing', g, 'inter_spacing');
         numberField(ctl, 'intra_spacing', g, 'intra_spacing');
         selectField(ctl, 'fill_wise', g, 'fill_wise', ['row', 'col']);
-        h('p', { 'class': 'mtpr-hint' }, ctl, 'Click a well to set start_position. Locked wells are reserved.');
-        if (lastCall && activeGroup === name) h('code', { 'class': 'mtpr-call' }, ctl, lastCall);
+        h('p', { 'class': 'mtpr-hint' }, ctl, 'Click a well to set start_position. Locked wells are reserved, and other features stay as they are.');
+        if (lastCall && seqFeature === name) h('code', { 'class': 'mtpr-call' }, ctl, lastCall);
       }
     }
     function renderSide() {
@@ -557,20 +605,18 @@
       countEls = {}; rowBtns = {};
       if (typeof editing === 'number' && !labels[editing]) editing = null;
       var head = h('div', { 'class': 'mtpr-row' }, side);
-      h('h3', { 'class': 'mtpr-heading' }, head, 'labels');
+      h('h3', { 'class': 'mtpr-heading' }, head, 'features');
       if (editable) {
         h('button', { type: 'button', 'class': 'mtpr-btn' }, head, 'Add label').addEventListener('click', function () { addLabel(null); });
-        h('button', { type: 'button', 'class': 'mtpr-btn' }, head, 'Add group').addEventListener('click', addGroup);
+        h('button', { type: 'button', 'class': 'mtpr-btn' }, head, 'Add feature').addEventListener('click', addFeature);
       }
       var order = labelOrder();
-      Object.keys(groupSettings).forEach(function (g) { renderGroupBox(side, g, order); });
-      labels.forEach(function (l, k) { if (l.group == null) renderLabelRow(side, k, order.indexOf(k)); });
+      Object.keys(features).forEach(function (g) { renderFeatureBox(side, g, order); });
     }
     // Labels in the order the list shows them, which is what keys 1-9 follow.
     function labelOrder() {
       var out = [];
-      Object.keys(groupSettings).forEach(function (g) { labels.forEach(function (l, k) { if (l.group === g) out.push(k); }); });
-      labels.forEach(function (l, k) { if (l.group == null) out.push(k); });
+      Object.keys(features).forEach(function (g) { labels.forEach(function (l, k) { if (l.feature === g) out.push(k); }); });
       return out;
     }
 
@@ -580,7 +626,7 @@
       if (!toolbar) return;
       labels.forEach(function (l, k) {
         if (!rowBtns[k]) return;
-        rowBtns[k].setAttribute('aria-pressed', !eraser && activeGroup == null && k === active ? 'true' : 'false');
+        rowBtns[k].setAttribute('aria-pressed', !eraser && seqFeature == null && k === active ? 'true' : 'false');
         countEls[k].textContent = cnt[k];
       });
       eraserBtn.setAttribute('aria-pressed', eraser ? 'true' : 'false');
@@ -597,18 +643,10 @@
     function say(msg) { status.textContent = msg; }
 
     // ---- reporting -------------------------------------------------------
-    // Column-wise, so plate_picker_value() can build a data frame: `group` and
-    // `attributes` are there only when the labels have them.
+    // Column-wise, one row per well, so plate_picker_value() can build a data frame.
     function valueObj() {
-      var v = core.valueRows(model()), out = { well: [], label: [] };
-      var grouped = v.columns.indexOf('group') >= 0;
-      if (grouped) out.group = [];
-      if (attrNames.length) { out.attributes = {}; attrNames.forEach(function (a) { out.attributes[a] = []; }); }
-      v.rows.forEach(function (r) {
-        out.well.push(r.well); out.label.push(r.label);
-        if (grouped) out.group.push(r.group);
-        attrNames.forEach(function (a) { out.attributes[a].push(r[a]); });
-      });
+      var v = core.valueRows(model()), out = {};
+      v.columns.forEach(function (c) { out[c] = v.rows.map(function (r) { return r[c]; }); });
       return out;
     }
     function emit() {
@@ -645,13 +683,16 @@
     }
     function setActive(k) {
       if (k < 0 || k >= labels.length) return;
-      eraser = false; activeGroup = null;
+      eraser = false; seqFeature = null;
+      // Show the feature being painted, unless an attribute was chosen on purpose.
+      if (features[fill] && fill !== labels[k].feature) {
+        active = k; fill = labels[k].feature; redraw(); emitActive(); return;
+      }
       var changed = k !== active; active = k;
       updateToolbar(); if (changed) emitActive();
     }
 
     // ---- exports (outside Shiny) ----------------------------------------
-    function rows() { var v = valueObj(); return v.well.map(function (w, n) { return [w, v.label[n]]; }); }
     function csvText() { return core.csvText(model()); }
     function download(name, text, type) {
       var blob = text instanceof Blob ? text : new Blob([text], { type: type });
@@ -661,8 +702,10 @@
       setTimeout(function () { URL.revokeObjectURL(a.href); document.body.removeChild(a); }, 1000);
     }
     function copyRows() {
-      var text = 'Well\tLabel\n' + rows().map(function (r) { return r[0] + '\t' + r[1]; }).join('\n');
-      var n = rows().length;
+      var v = core.valueRows(model()), n = v.rows.length;
+      var text = [v.columns.join('\t')].concat(v.rows.map(function (r) {
+        return v.columns.map(function (c) { return r[c] == null ? '' : r[c]; }).join('\t');
+      })).join('\n');
       function fallback() {
         var ta = document.createElement('textarea'); ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
         document.body.appendChild(ta); ta.select();
@@ -678,11 +721,11 @@
       var at = {};
       attrNames.forEach(function (a) { at[a] = labels.map(function (l) { return l.attrs[a]; }); });
       return JSON.stringify({
-        version: 2, plate: plate, title: title,
+        version: 3, plate: plate, title: title,
         labels: labels.map(function (l) { return l.name; }),
         colours: labels.map(function (l) { return l.colour; }),
-        groups: labels.map(function (l) { return l.group; }),
-        attributes: at, attributeTypes: attrTypes, groupSettings: groupSettings,
+        features: labels.map(function (l) { return l.feature; }),
+        attributes: at, attributeTypes: attrTypes, featureSettings: features,
         fill: fill, log: logScale, locked: lockedWells(), assignments: valueObj()
       }).replace(/</g, '\\u003c');
     }
@@ -787,11 +830,11 @@
     function openImport(name, table) {
       if (!table.header.length) { say(name + ' has no rows.'); return; }
       var roles = core.columnRoles(table);
-      var choices = [['well', 'well'], ['label', 'label'], ['group', 'group'], ['number', 'number attribute'], ['text', 'text attribute'], ['ignore', 'ignore']];
+      var choices = [['well', 'well'], ['feature', 'feature'], ['label', 'label'], ['featurename', 'feature name'], ['number', 'number attribute'], ['text', 'text attribute'], ['ignore', 'ignore']];
       var draw = function () {
         var body2 = openPanel('Load ' + name);
-        var plan = core.planImport(table, roles, info, multiple);
-        h('p', { 'class': 'mtpr-hint' }, body2, table.rows.length + ' rows. ' + (plan.kind === 'layout' ? 'A finished layout: it replaces the painting on this plate.' : 'A list of labels to paint with.'));
+        var plan = core.planImport(table, roles, info);
+        h('p', { 'class': 'mtpr-hint' }, body2, table.rows.length + ' rows. ' + (plan.kind === 'layout' ? 'A finished layout, one row per well: it replaces the painting on this plate.' : 'A list of labels to paint with.'));
         var scroll = h('div', { 'class': 'mtpr-scroll' }, body2);
         var tbl = h('table', { 'class': 'mtpr-table' }, scroll);
         var headRow = h('tr', {}, h('thead', {}, tbl));
@@ -825,7 +868,7 @@
       var skipped = 0;
       changeModel(function () {
         // The plain "selected" label makes way for real ones.
-        if (labels.length === 1 && labels[0].name === 'selected' && !assign.some(function (a) { return a.length; })) labels = [];
+        if (labels.length === 1 && labels[0].name === 'selected' && !assign.some(function (a) { return a.length; })) { labels = []; features = {}; active = 0; }
         plan.attrs.forEach(function (a) {
           if (attrNames.indexOf(a.name) < 0) {
             attrNames.push(a.name);
@@ -833,29 +876,36 @@
           }
           attrTypes[a.name] = a.type;
         });
-        var fresh = [];
+        var fresh = [], known = {};
+        labels.forEach(function (l) { known[l.feature] = true; });
         plan.labels.forEach(function (rec) {
-          var k = labelIndex(rec.name);
+          var k = labelIn(rec.feature, rec.name);
           if (k < 0) {
             var attrs = {}; attrNames.forEach(function (a) { attrs[a] = null; });
-            labels.push({ name: rec.name, colour: null, group: rec.group, attrs: attrs });
+            labels.push({ name: rec.name, colour: null, feature: rec.feature, attrs: attrs });
             k = labels.length - 1; fresh.push(k);
-          } else if (rec.group != null) labels[k].group = rec.group;
+          }
           Object.keys(rec.attrs).forEach(function (a) { labels[k].attrs[a] = rec.attrs[a]; });
         });
-        var cols = core.defaultColours(labels.map(function (l) { return l.group; }));
-        fresh.forEach(function (k) { labels[k].colour = cols[k]; });
-        syncGroups();
+        var cols = core.defaultColours(labels.map(function (l) { return l.feature === 'label' ? null : l.feature; }));
+        // A new feature gets its own shades; a new label in an old feature must not
+        // land on a shade already in use.
+        fresh.forEach(function (k) { if (!known[labels[k].feature]) labels[k].colour = cols[k]; });
+        fresh.forEach(function (k) {
+          if (known[labels[k].feature]) labels[k].colour = core.nextColour(labels.map(function (l) { return l.colour; }));
+        });
+        syncFeatures();
         if (plan.kind === 'layout') {
           for (var i = 0; i < N; i++) if (!locked[i]) assign[i] = [];
           plan.placed.forEach(function (p) {
             var w = index[p.well];
             if (locked[w]) { skipped++; return; }
-            assign[w].push(labelIndex(p.label));
+            Object.keys(p.values).forEach(function (f) { add(w, labelIn(f, p.values[f])); });
           });
-          assign.forEach(function (a) { a.sort(function (p, q) { return p - q; }); });
         }
         active = Math.max(0, Math.min(active, labels.length - 1));
+        if (plan.kind === 'layout' && features[fill]) fill = plan.features[0];
+        fixFill();
       });
       say('Loaded ' + (plan.kind === 'layout' ? plan.placed.length - skipped + ' wells' : plan.labels.length + ' labels') + (skipped ? '; ' + skipped + ' locked wells were skipped.' : '.'));
     }
@@ -896,7 +946,7 @@
           h('figcaption', {}, fig, 'Preview');
           h('div', {}, fig).innerHTML = core.plateSVG(model(), Object.assign(imageOpts(o), { width: 520 })).svg;
         } else {
-          h('p', { 'class': 'mtpr-hint' }, side2, 'One row per well: well, label, group and each attribute. Read it with read_plate_picker().');
+          h('p', { 'class': 'mtpr-hint' }, side2, 'One row per well: well, a column per feature, and each attribute. Read it with read_plate_picker().');
         }
         var act = h('div', { 'class': 'mtpr-actions' }, side2);
         if (o.format === 'CSV') h('button', { type: 'button', 'class': 'mtpr-btn' }, act, 'Copy rows').addEventListener('click', copyRows);
@@ -944,11 +994,11 @@
       commit(before);
     }
 
-    // One click lays out the whole group from that well, like replicate_reactions().
+    // One click lays out the whole feature from that well, like replicate_reactions().
     function placeSequence(start) {
-      var g = groupSettings[activeGroup], members = [];
-      labels.forEach(function (l, k) { if (l.group === activeGroup) members.push(k); });
-      if (!members.length) { say('The group ' + activeGroup + ' has no labels.'); return; }
+      var g = features[seqFeature], members = [];
+      labels.forEach(function (l, k) { if (l.feature === seqFeature) members.push(k); });
+      if (!members.length) { say('The feature ' + seqFeature + ' has no labels.'); return; }
       var reserved = [];
       locked.forEach(function (on, i) { if (on) reserved.push(i); });
       var opts = { pattern: g.pattern, num_replicates: g.num_replicates, inter_spacing: g.inter_spacing, intra_spacing: g.intra_spacing, fill_wise: g.fill_wise, start_position: start, reserved: reserved };
@@ -970,7 +1020,7 @@
       svg.focus({ preventScroll: true });
       setFocus(i);
       if (locked[i]) { say(wells[i] + ' is locked.'); return; }
-      if (activeGroup != null && !eraser) { placeSequence(i); return; }
+      if (seqFeature != null && !eraser) { placeSequence(i); return; }
       drag = { start: i, last: i, shift: ev.shiftKey, before: snapshot(), mode: modeFor(i), pid: ev.pointerId };
       try { svg.setPointerCapture(ev.pointerId); } catch (e) { /* synthetic events */ }
       if (drag.shift) showPreview(i, i); else applyMode(i, drag.mode);
@@ -1006,12 +1056,12 @@
       if (ev.pointerType && ev.pointerType !== 'mouse' && ev.pointerType !== 'pen') return;
       var i = cellAt(ev);
       if (i < 0) { hideTip(); return; }
-      var lines = [wells[i] + (assign[i].length ? ': ' + labelNames(i) : '')];
-      if (assign[i].length === 1) {
-        var l = labels[assign[i][0]];
-        if (l.group != null) lines.push('group: ' + l.group);
+      var lines = [wells[i]];
+      assign[i].forEach(function (k) {
+        var l = labels[k];
+        lines.push(l.feature + ': ' + l.name);
         attrNames.forEach(function (a) { if (l.attrs[a] != null) lines.push(a + ': ' + l.attrs[a]); });
-      }
+      });
       if (bgTip[i]) lines.push(bgTip[i]);
       if (locked[i]) lines.push('locked');
       tip.textContent = lines.join('\n');
@@ -1060,13 +1110,13 @@
     function update(msg) {
       var before = snapshot(), moved = false;
       if (msg.labels != null) {
-        var painted = valueObj(), oldGroups = groupSettings;
-        groupSettings = {};
+        var painted = valueObj(), oldFeatures = features;
+        features = {};
         setLabels(msg.labels);
-        Object.keys(groupSettings).forEach(function (g) { if (oldGroups[g]) groupSettings[g] = oldGroups[g]; });
+        Object.keys(features).forEach(function (g) { if (oldFeatures[g]) features[g] = oldFeatures[g]; });
         active = Math.min(active, labels.length - 1);
-        if (activeGroup != null && !groupSettings[activeGroup]) activeGroup = null;
-        if (fill !== 'label' && fill !== 'group' && attrNames.indexOf(fill) < 0) fill = 'label';
+        if (seqFeature != null && !features[seqFeature]) seqFeature = null;
+        fixFill();
         setValue(painted); moved = true;
       }
       if (msg.plate != null && +msg.plate !== plate) { setPlateTo(+msg.plate, 'keep', 'row'); moved = true; }
@@ -1074,7 +1124,7 @@
       if (msg.background != null) { setBackground(msg.background); moved = true; }
       if (msg.value != null) { setValue(msg.value); moved = true; }
       if (msg.fill != null) { fill = msg.fill; moved = true; }
-      if (msg.active != null) { var k = labelIndex(msg.active); if (k >= 0) { eraser = false; activeGroup = null; var ch = k !== active; active = k; if (ch) emitActive(); } }
+      if (msg.active != null) { var k = labelIndex(msg.active); if (k >= 0) { eraser = false; seqFeature = null; var ch = k !== active; active = k; if (ch) emitActive(); } }
       if (moved) redraw();
       if (msg.value != null || msg.plate != null || msg.labels != null) commit(before); else updateToolbar();
     }

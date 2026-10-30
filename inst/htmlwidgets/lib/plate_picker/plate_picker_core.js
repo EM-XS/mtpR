@@ -169,18 +169,20 @@
   function paletteColour(i) {
     return mix(PALETTE[i % PALETTE.length], '#FFFFFF', 1 - Math.pow(0.65, Math.floor(i / PALETTE.length)));
   }
-  // A group takes one palette colour, and its labels run dark to light through
-  // it. picker_default_colours() in R.
-  function defaultColours(groups) {
+  // A feature takes one palette colour, and its labels run dark to light through
+  // it. Labels with no feature (null) each take their own palette colour.
+  // picker_default_colours() in R.
+  function defaultColours(features) {
     var units = [], where = {}, out = [];
-    groups.forEach(function (g, k) {
-      var key = g == null || g === '' ? 'label:' + k : 'group:' + g;
+    var keyOf = function (f, k) { return f == null || f === '' ? 'label:' + k : 'feature:' + f; };
+    features.forEach(function (f, k) {
+      var key = keyOf(f, k);
       if (where[key] == null) { where[key] = units.length; units.push(0); }
       units[where[key]]++;
     });
     var seen = units.map(function () { return 0; });
-    groups.forEach(function (g, k) {
-      var u = where[g == null || g === '' ? 'label:' + k : 'group:' + g];
+    features.forEach(function (f, k) {
+      var u = where[keyOf(f, k)];
       var base = paletteColour(u), m = units[u], j = seen[u]++, t = m > 1 ? j / (m - 1) : 0.5;
       out.push(t < 0.5 ? mix(base, '#000000', 0.45 * (1 - 2 * t)) : mix(base, '#FFFFFF', 0.75 * (2 * t - 1)));
     });
@@ -194,23 +196,23 @@
     return PALETTE[0];
   }
 
-  // What each label is drawn in, for plot_plate()-style `fill` and `scale`.
-  // model: labels (records with name, group, colour, attrs), attrTypes, fill, log.
+  function isNumber(s) { return s !== '' && s != null && isFinite(Number(s)); }
+  // What each label is drawn in, like the `fill` and `scale` of plot_plate().
+  // model: labels (records with name, feature, colour, attrs), features (settings
+  // by name), attrTypes, fill, log. `fill` is a feature or an attribute.
   function fillScale(model) {
-    var labels = model.labels, fill = model.fill || 'label', out = { fill: fill, type: 'discrete', keys: [] };
-    if (fill === 'label') {
-      out.colour = labels.map(function (l) { return l.colour; });
-      out.text = labels.map(function (l) { return l.name; });
-      out.keys = labels.map(function (l, k) { return { name: l.name, colour: l.colour, k: k }; });
-      return out;
-    }
+    var labels = model.labels, fill = model.fill, isFeature = !!model.features[fill];
+    var out = { fill: fill, isFeature: isFeature, type: 'discrete', keys: [] };
     var value = function (l) {
-      var v = fill === 'group' ? l.group : l.attrs[fill];
+      var v = isFeature ? (l.feature === fill ? l.name : null) : l.attrs[fill];
       return v == null || v === '' ? null : v;
     };
-    var values = labels.map(value);
-    if (fill !== 'group' && model.attrTypes[fill] === 'number') {
-      var nums = values.filter(function (v) { return v != null; }).map(Number);
+    var values = labels.map(value), present = values.filter(function (v) { return v != null; });
+    var numeric = isFeature
+      ? model.features[fill].scale !== 'discrete' && present.length > 0 && present.every(isNumber)
+      : model.attrTypes[fill] === 'number';
+    if (numeric && present.length) {
+      var nums = present.map(Number);
       var lo = Math.min.apply(null, nums), hi = Math.max.apply(null, nums);
       var log = !!model.log && lo > 0;
       var at = function (v) {
@@ -222,12 +224,23 @@
       out.text = values.map(function (v) { return v == null ? '' : String(v); });
       return out;
     }
+    out.text = labels.map(function (l, k) { return values[k] == null ? '' : l.name; });
+    if (isFeature) {
+      out.colour = labels.map(function (l, k) { return values[k] == null ? null : l.colour; });
+      labels.forEach(function (l, k) { if (values[k] != null) out.keys.push({ name: l.name, colour: l.colour, k: k }); });
+      return out;
+    }
     var keys = [];
-    values.forEach(function (v) { if (v != null && keys.indexOf(String(v)) < 0) keys.push(String(v)); });
+    present.forEach(function (v) { if (keys.indexOf(String(v)) < 0) keys.push(String(v)); });
     out.keys = keys.map(function (name, i) { return { name: name, colour: paletteColour(i) }; });
     out.colour = values.map(function (v) { return v == null ? null : paletteColour(keys.indexOf(String(v))); });
-    out.text = labels.map(function (l) { return l.name; });
     return out;
+  }
+  // The label that sets a well's colour, or -1 when a painted well has no value
+  // for `fill` (drawn in the NA colour, as plot_plate() would draw it).
+  function wellPick(a, scale) {
+    for (var n = 0; n < a.length; n++) if (scale.colour[a[n]] != null) return a[n];
+    return -1;
   }
 
   // ---- reading tables -----------------------------------------------------
@@ -260,26 +273,28 @@
       rows: rows.slice(1).map(function (r) { return header.map(function (_, j) { return r[j] == null ? '' : r[j].trim(); }); })
     };
   }
-  function isNumber(s) { return s !== '' && isFinite(Number(s)); }
   // Column names used across mtpR: plate_picker exports, place_controls() and
-  // plate_roles() (Well, Control, Role), design_plate() (Well.Position) and
-  // replicate_reactions() (reaction, replicate, position).
-  var ROLE_NAMES = {
-    well: ['well', 'wellposition', 'wellid'],
-    label: ['label', 'control', 'reaction', 'rxn'],
-    group: ['group', 'role'],
-    ignore: ['row', 'column', 'wellindex', 'position', 'replicate', 'plateindex', 'quadrant']
-  };
+  // plate_roles() (Well), design_plate() (Well.Position) and replicate_reactions()
+  // (replicate, position, which describe the layout, not a well's contents).
+  var WELL_NAMES = ['well', 'wellposition', 'wellid'];
+  var LAYOUT_NAMES = ['row', 'column', 'wellindex', 'position', 'replicate', 'plateindex', 'quadrant'];
+  var LABEL_NAMES = ['label', 'control', 'reaction', 'rxn'];
+  var FEATURE_NAMES = ['feature'];
+  // With a well column every other column is a feature, one value per well.
+  // Without one the table is a list of labels, and the rest are their attributes.
   function columnRoles(table) {
-    var taken = {};
-    return table.header.map(function (name, j) {
-      var key = name.toLowerCase().replace(/[^a-z0-9]/g, '');
-      for (var role in ROLE_NAMES) {
-        if (ROLE_NAMES[role].indexOf(key) >= 0) {
-          if (role === 'ignore') return role;
-          if (!taken[role]) { taken[role] = true; return role; }
-        }
-      }
+    var keys = table.header.map(function (name) { return name.toLowerCase().replace(/[^a-z0-9]/g, ''); });
+    var wellAt = -1, labelAt = -1, featureAt = -1;
+    keys.forEach(function (key, j) {
+      if (wellAt < 0 && WELL_NAMES.indexOf(key) >= 0) wellAt = j;
+      if (labelAt < 0 && LABEL_NAMES.indexOf(key) >= 0) labelAt = j;
+      if (featureAt < 0 && FEATURE_NAMES.indexOf(key) >= 0) featureAt = j;
+    });
+    return keys.map(function (key, j) {
+      if (wellAt >= 0) return j === wellAt ? 'well' : LAYOUT_NAMES.indexOf(key) >= 0 ? 'ignore' : 'feature';
+      if (j === labelAt) return 'label';
+      if (j === featureAt) return 'featurename';
+      if (LAYOUT_NAMES.indexOf(key) >= 0) return 'ignore';
       var cells = table.rows.map(function (r) { return r[j]; }).filter(function (c) { return c !== ''; });
       return cells.length && cells.every(isNumber) ? 'number' : 'text';
     });
@@ -288,55 +303,60 @@
     var u = xs.filter(function (x, i) { return xs.indexOf(x) === i; });
     return u.slice(0, 5).join(', ') + (u.length > 5 ? ', ...' : '');
   }
-  // Works out what loading a table would do. Attributes belong to a label, the
-  // way replicate_reactions() joins `rxn_df` to each reaction's wells.
-  function planImport(table, roles, info, multiple) {
-    var find = function (role) { return roles.indexOf(role); };
-    var wellCol = find('well'), labelCol = find('label'), groupCol = find('group');
-    var attrs = [];
-    roles.forEach(function (r, j) { if (r === 'number' || r === 'text') attrs.push({ name: table.header[j], col: j, type: r }); });
-    var plan = { kind: wellCol >= 0 ? 'layout' : 'labels', labels: [], placed: [], attrs: attrs, checks: [], ok: false, badRows: [] };
-    if (labelCol < 0) {
-      plan.checks.push({ level: 'Problem', text: 'Choose the column to use as Label.' });
-      return plan;
-    }
-    var byName = {}, changed = 0, blank = 0, offPlate = [], taken = {}, clashes = [], again = [];
-    table.rows.forEach(function (row, n) {
-      var name = row[labelCol];
-      if (name === '') { blank++; return; }
-      var cleaned = null;
-      if (wellCol >= 0) {
-        cleaned = cleanWell(row[wellCol], info);
+  // Works out what loading a table would do: a layout has one value per feature
+  // for each well, and a list of labels has attributes for each label.
+  function planImport(table, roles, info) {
+    var wellCol = roles.indexOf('well'), plan = { kind: wellCol >= 0 ? 'layout' : 'labels', labels: [], placed: [], features: [], attrs: [], checks: [], ok: false, badRows: [] };
+    var seen = {};
+    var labelOf = function (name, feature, attrs) {
+      var key = JSON.stringify([feature, name]);
+      if (!seen[key]) {
+        seen[key] = { name: name, feature: feature, attrs: attrs || {} };
+        plan.labels.push(seen[key]);
+        if (plan.features.indexOf(feature) < 0) plan.features.push(feature);
+        return true;
+      }
+      return false;
+    };
+    if (plan.kind === 'layout') {
+      var cols = [];
+      roles.forEach(function (r, j) { if (r === 'feature') cols.push(j); });
+      if (!cols.length) { plan.checks.push({ level: 'Problem', text: 'Choose at least one column to use as a feature.' }); return plan; }
+      var changed = 0, blank = 0, offPlate = [], again = [], taken = {};
+      table.rows.forEach(function (row, n) {
+        var cleaned = cleanWell(row[wellCol], info);
         if (cleaned == null) { offPlate.push(row[wellCol] || '(blank)'); plan.badRows.push(n); return; }
         if (cleaned !== row[wellCol]) changed++;
-      }
-      var rec = byName[name];
-      if (!rec) {
-        rec = byName[name] = { name: name, group: groupCol >= 0 && row[groupCol] !== '' ? row[groupCol] : null, attrs: {} };
-        attrs.forEach(function (a) { var v = row[a.col]; rec.attrs[a.name] = v === '' ? null : a.type === 'number' ? Number(v) : v; });
-        plan.labels.push(rec);
-      } else {
-        attrs.forEach(function (a) {
-          var v = row[a.col], old = rec.attrs[a.name];
-          if (v !== '' && old != null && String(a.type === 'number' ? Number(v) : v) !== String(old) && clashes.indexOf(name) < 0) clashes.push(name);
-        });
-      }
-      if (cleaned != null) {
-        if (taken[cleaned] && (!multiple || taken[cleaned].indexOf(name) >= 0)) { again.push(cleaned); plan.badRows.push(n); return; }
-        taken[cleaned] = (taken[cleaned] || []).concat(name);
-        plan.placed.push({ well: cleaned, label: name });
-      }
-    });
-    if (wellCol >= 0) {
-      plan.checks.push({ level: 'OK', text: plan.placed.length + ' rows place a label on this ' + info.plate + '-well plate.' });
+        var values = {}, any = false;
+        cols.forEach(function (j) { if (row[j] !== '') { values[table.header[j]] = row[j]; any = true; } });
+        if (!any) { blank++; return; }
+        if (taken[cleaned]) { again.push(cleaned); plan.badRows.push(n); return; }
+        taken[cleaned] = true;
+        Object.keys(values).forEach(function (f) { labelOf(values[f], f); });
+        plan.placed.push({ well: cleaned, values: values });
+      });
+      plan.checks.push({ level: 'OK', text: plan.placed.length + ' wells on this ' + info.plate + '-well plate, with ' + cols.length + (cols.length === 1 ? ' feature: ' : ' features: ') + cols.map(function (j) { return table.header[j]; }).join(', ') + '.' });
       if (changed) plan.checks.push({ level: 'Changed', text: changed + ' well labels were standardised, as clean_wells() does.' });
+      if (blank) plan.checks.push({ level: 'Note', text: blank + ' rows have no values and were left out.' });
       if (offPlate.length) plan.checks.push({ level: 'Problem', text: 'Skipped ' + offPlate.length + ' rows that are not wells on this plate: ' + listWells(offPlate) + '.' });
-      if (again.length) plan.checks.push({ level: 'Problem', text: 'Skipped rows for wells already used: ' + listWells(again) + '.' });
-    } else {
-      plan.checks.push({ level: 'OK', text: plan.labels.length + ' labels. Nothing is placed on the plate until you paint it.' });
+      if (again.length) plan.checks.push({ level: 'Problem', text: 'A well has one row, so later rows were skipped for: ' + listWells(again) + '.' });
+      plan.ok = plan.placed.length > 0;
+      return plan;
     }
-    if (blank) plan.checks.push({ level: 'Note', text: blank + ' rows have no label and were left out.' });
-    if (clashes.length) plan.checks.push({ level: 'Problem', text: 'Attributes belong to a label, but these differ between rows, so the first row was kept: ' + listWells(clashes) + '.' });
+    var labelCol = roles.indexOf('label'), featureCol = roles.indexOf('featurename');
+    roles.forEach(function (r, j) { if (r === 'number' || r === 'text') plan.attrs.push({ name: table.header[j], col: j, type: r }); });
+    if (labelCol < 0) { plan.checks.push({ level: 'Problem', text: 'Choose the column to use as label, or the column to use as well.' }); return plan; }
+    var empty = 0, repeats = [];
+    table.rows.forEach(function (row) {
+      var name = row[labelCol];
+      if (name === '') { empty++; return; }
+      var attrs = {};
+      plan.attrs.forEach(function (a) { var v = row[a.col]; attrs[a.name] = v === '' ? null : a.type === 'number' ? Number(v) : v; });
+      if (!labelOf(name, featureCol >= 0 && row[featureCol] !== '' ? row[featureCol] : 'label', attrs)) repeats.push(name);
+    });
+    plan.checks.push({ level: 'OK', text: plan.labels.length + ' labels in ' + plan.features.length + (plan.features.length === 1 ? ' feature' : ' features') + '. Nothing is placed on the plate until you paint it.' });
+    if (empty) plan.checks.push({ level: 'Note', text: empty + ' rows have no label and were left out.' });
+    if (repeats.length) plan.checks.push({ level: 'Problem', text: 'Labels appear more than once, so the first row was kept: ' + listWells(repeats) + '.' });
     plan.ok = plan.labels.length > 0;
     return plan;
   }
@@ -346,18 +366,23 @@
     var s = v == null ? '' : String(v);
     return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
   }
-  // One row per well and label. model: wells, assign, labels, attrNames.
+  // One row per painted well, one column per feature, then the attributes of the
+  // well's labels. model: wells, assign, labels, features, attrNames.
   function valueRows(model) {
-    var rows = [], grouped = model.labels.some(function (l) { return l.group != null; });
+    var names = Object.keys(model.features), rows = [];
     model.assign.forEach(function (a, i) {
+      if (!a.length) return;
+      var row = { well: model.wells[i] };
+      names.forEach(function (f) { row[f] = null; });
+      model.attrNames.forEach(function (name) { row[name] = null; });
       a.forEach(function (k) {
-        var l = model.labels[k], row = { well: model.wells[i], label: l.name };
-        if (grouped) row.group = l.group;
-        model.attrNames.forEach(function (name) { row[name] = l.attrs[name] == null ? null : l.attrs[name]; });
-        rows.push(row);
+        var l = model.labels[k];
+        row[l.feature] = l.name;
+        model.attrNames.forEach(function (name) { if (row[name] == null && l.attrs[name] != null) row[name] = l.attrs[name]; });
       });
+      rows.push(row);
     });
-    return { rows: rows, columns: ['well', 'label'].concat(grouped ? ['group'] : [], model.attrNames) };
+    return { rows: rows, columns: ['well'].concat(names, model.attrNames) };
   }
   function csvText(model) {
     var v = valueRows(model);
@@ -402,22 +427,19 @@
         parts.push('<rect x="' + cx + '" y="' + cy + '" width="' + sz + '" height="' + sz + '" rx="5" fill="' + EMPTY_FILL + '" stroke="' + EMPTY_EDGE + '"/>');
         return;
       }
-      var band = sz / a.length;
-      a.forEach(function (k, n) {
-        used[k] = true;
-        var fill = scale.colour[k] || FILL_NA;
-        parts.push('<rect x="' + cx + '" y="' + round(cy + n * band) + '" width="' + sz + '" height="' + round(band) + '" rx="' + (a.length > 1 ? 1 : 5) + '" fill="' + fill + '" stroke="rgba(0,0,0,.35)"/>');
-      });
-      if (opts.text && info.plate <= 384 && a.length === 1) {
-        var t = scale.text[a[0]];
-        if (t) parts.push('<text x="' + (cx + sz / 2) + '" y="' + (cy + sz / 2 + 3.5) + '" font-size="10" font-weight="600" text-anchor="middle" fill="' + inkFor(scale.colour[a[0]] || FILL_NA) + '">' + xml(shortText(t)) + '</text>');
+      var k = wellPick(a, scale);
+      var fill = k < 0 ? FILL_NA : scale.colour[k];
+      if (k >= 0) used[k] = true;
+      parts.push('<rect x="' + cx + '" y="' + cy + '" width="' + sz + '" height="' + sz + '" rx="5" fill="' + fill + '" stroke="rgba(0,0,0,.35)"/>');
+      if (opts.text && info.plate <= 384 && k >= 0 && scale.text[k]) {
+        parts.push('<text x="' + (cx + sz / 2) + '" y="' + (cy + sz / 2 + 3.5) + '" font-size="10" font-weight="600" text-anchor="middle" fill="' + inkFor(fill) + '">' + xml(shortText(scale.text[k])) + '</text>');
       }
-      if (marks[i]) parts.push('<text x="' + (cx + sz / 2) + '" y="' + (cy + sz / 2 + 7) + '" font-size="20" font-weight="700" text-anchor="middle" fill="' + inkFor(scale.colour[a[0]] || FILL_NA) + '">×</text>');
+      if (marks[i]) parts.push('<text x="' + (cx + sz / 2) + '" y="' + (cy + sz / 2 + 7) + '" font-size="20" font-weight="700" text-anchor="middle" fill="' + inkFor(fill) + '">\u00D7</text>');
     });
     var width = x0 + plateW + pad, height = y0 + plateH + pad;
     if (opts.legend) {
-      var lx = x0 + plateW + 24, ly = y0 + 12, title = model.fill === 'label' || !model.fill ? 'label' : model.fill;
-      parts.push('<text x="' + lx + '" y="' + ly + '" font-size="13" font-weight="600" fill="' + INK + '">' + xml(title) + '</text>');
+      var lx = x0 + plateW + 24, ly = y0 + 12;
+      parts.push('<text x="' + lx + '" y="' + ly + '" font-size="13" font-weight="600" fill="' + INK + '">' + xml(model.fill) + '</text>');
       ly += 10;
       if (scale.type === 'continuous') {
         var gid = 'mtpr-ramp-' + model.fill.replace(/[^\w]/g, '');
@@ -455,7 +477,7 @@
     sequenceLayout: sequenceLayout, sequenceCall: sequenceCall,
     canQuadrant: canQuadrant, movePlate: movePlate,
     mix: mix, inkFor: inkFor, paletteColour: paletteColour, defaultColours: defaultColours, nextColour: nextColour,
-    fillScale: fillScale,
+    fillScale: fillScale, wellPick: wellPick,
     parseTable: parseTable, columnRoles: columnRoles, planImport: planImport,
     valueRows: valueRows, csvText: csvText, plateSVG: plateSVG
   };

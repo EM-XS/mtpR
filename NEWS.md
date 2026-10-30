@@ -1,3 +1,23 @@
+# mtpR 0.4.4
+
+## plate_picker(): several features per well
+
+* A well can now carry several characteristics at once. Each is a *feature*, its
+  values are its labels, and a well holds one label per feature: `labels` takes a
+  `feature` column in place of `group`. Painting replaces only that feature's value
+  in those wells, and the eraser works on the active feature.
+* The result has one row per well and one column per feature, then any attributes,
+  so it goes straight into `plot_plate()`. This is the shape of
+  `plate_picker_value()`, `read_plate_picker()`, the CSV export and the `value`
+  argument. A plain `plate_picker(96, c("Blank", "Standard"))` still gives `well`
+  and `label`.
+* `fill` picks a feature or an attribute. A painted well with no value for it uses
+  the NA colour, as `plot_plate()` would draw it.
+* Load CSV reads a file with a well column as one row per well, with each other
+  column as a feature.
+* Sequence painting fills one feature and leaves the others alone.
+* `multiple` is removed. Use features for wells that carry several things.
+
 # mtpR 0.4.3
 
 ## plate_picker() is now a portable plate editor

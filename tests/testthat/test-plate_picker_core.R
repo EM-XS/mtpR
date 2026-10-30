@@ -82,21 +82,20 @@ test_that("the R call the widget shows runs and gives the same wells", {
 })
 
 test_that("default colours match R", {
-  groups <- list("a", "a", "a", NA, "b", NA, "a", "b")
-  expect_equal(core(sprintf("return core.defaultColours(%s);", js(lapply(groups, function(g) if (is.na(g)) NULL else g)))),
-               unname(picker_default_colours(unlist(groups))))
+  feats <- list("a", "a", "a", NA, "b", NA, "a", "b")
+  expect_equal(core(sprintf("return core.defaultColours(%s);", js(lapply(feats, function(g) if (is.na(g)) NULL else g)))),
+               unname(picker_default_colours(unlist(feats))))
   expect_equal(core("return [0, 7, 8, 16, 23].map(core.paletteColour);"),
                vapply(c(1, 8, 9, 17, 24), picker_palette, character(1)))
 })
 
-test_that("tables are parsed and columns matched to mtpR names", {
-  text <- "\ufeffWell,Control,Role,Well.Index,conc uM,batch\nA1,\"a, b\",control,1,10,x\nb2,c,control,2,,y\n"
+test_that("tables are parsed, and a well column makes every other column a feature", {
+  text <- "\ufeffWell,Control,Role,Well.Index,conc uM,replicate\nA1,\"a, b\",control,1,10,1\nb2,c,control,2,,1\n"
   out <- core(sprintf("const t = core.parseTable(%s); return {h: t.header, r: t.rows, roles: core.columnRoles(t)};", js(text)))
-  expect_equal(out$h, c("Well", "Control", "Role", "Well.Index", "conc uM", "batch"))
+  expect_equal(out$h, c("Well", "Control", "Role", "Well.Index", "conc uM", "replicate"))
   expect_equal(out$r[1, 2], "a, b")
-  expect_equal(out$roles, c("well", "label", "group", "ignore", "number", "text"))
-  tabbed <- core("return core.parseTable('well\\tlabel\\nA1\\tx\\n').rows[0];")
-  expect_equal(tabbed, c("A1", "x"))
+  expect_equal(out$roles, c("well", "feature", "feature", "ignore", "feature", "ignore"))
+  expect_equal(core("return core.parseTable('well\\tlabel\\nA1\\tx\\n').rows[0];"), c("A1", "x"))
 
   plate <- place_controls(96, wells = "A01", name = "buffer")
   csv <- tempfile(fileext = ".csv")
@@ -104,23 +103,63 @@ test_that("tables are parsed and columns matched to mtpR names", {
   roles <- core(sprintf("return core.columnRoles(core.parseTable(%s));",
                         js(paste(readLines(csv), collapse = "\n"))))
   expect_equal(roles[names(plate) == "Well"], "well")
-  expect_equal(roles[names(plate) == "Control"], "label")
-  expect_equal(roles[names(plate) == "Role"], "group")
+  expect_equal(roles[names(plate) == "Control"], "feature")
+
+  roles <- core("return core.columnRoles(core.parseTable('label,feature,conc,lot\\nS1,std,1,x\\n'));")
+  expect_equal(roles, c("label", "featurename", "number", "text"))
 })
 
-test_that("importing a layout reports what it did", {
-  text <- "well,label,group,conc\na1,S1,Std,10\nA02,S1,Std,10\nI13,S2,Std,5\nA03,S3,,\nA03,S4,,\nA04,S5,,1\nA05,S5,,2\n,,,\n"
+test_that("importing a layout gives each well one value per feature", {
+  text <- "well,cell_line,treatment\na1,HeLa,Drug A\nA02,HeLa,\nI13,HEK,Drug B\nA03,HEK,Drug B\nA03,HEK,Drug C\nA04,,\n"
   out <- core(sprintf(
     "const t = core.parseTable(%s), r = core.columnRoles(t);
-     const p = core.planImport(t, r, core.plateInfo(96), false);
-     return {wells: p.placed.map(x => x.well), checks: p.checks.map(c => c.text).join(' | '),
-             labels: p.labels.map(l => l.name), ok: p.ok};", js(text)))
-  expect_equal(out$wells, c("A01", "A02", "A03", "A04", "A05"))
-  expect_equal(out$labels, c("S1", "S3", "S4", "S5"))
+     const p = core.planImport(t, r, core.plateInfo(96));
+     return {wells: p.placed.map(x => x.well), first: p.placed[0].values, second: p.placed[1].values,
+             checks: p.checks.map(c => c.text).join(' | '), labels: p.labels.map(l => l.feature + ':' + l.name), ok: p.ok};", js(text)))
+  expect_equal(out$wells, c("A01", "A02", "A03"))
+  expect_equal(out$first, list(cell_line = "HeLa", treatment = "Drug A"))
+  expect_equal(out$second, list(cell_line = "HeLa"))
+  expect_equal(out$labels, c("cell_line:HeLa", "treatment:Drug A", "cell_line:HEK", "treatment:Drug B"))
   expect_match(out$checks, "I13")
-  expect_match(out$checks, "already used: A03")
-  expect_match(out$checks, "first row was kept: S5")
+  expect_match(out$checks, "later rows were skipped for: A03")
+  expect_match(out$checks, "1 rows have no values")
   expect_true(out$ok)
+})
+
+test_that("importing a list of labels gives labels with attributes", {
+  text <- "label,feature,lot\nHeLa,cell_line,7\nDrug A,treatment,\nDrug A,treatment,9\nNone,,\n"
+  out <- core(sprintf(
+    "const t = core.parseTable(%s), r = core.columnRoles(t);
+     const p = core.planImport(t, r, core.plateInfo(96));
+     return {kind: p.kind, labels: p.labels.map(l => l.feature + ':' + l.name), lot: p.labels[0].attrs.lot,
+             checks: p.checks.map(c => c.text).join(' | ')};", js(text)))
+  expect_equal(out$kind, "labels")
+  expect_equal(out$labels, c("cell_line:HeLa", "treatment:Drug A", "label:None"))
+  expect_equal(out$lot, 7)
+  expect_match(out$checks, "first row was kept: Drug A")
+})
+
+test_that("fill follows one feature, and wells without it are NA", {
+  out <- core("const labels = [
+      {name: 'HeLa', feature: 'line', colour: '#0072B2', attrs: {lot: 3}},
+      {name: 'Drug A', feature: 'drug', colour: '#E69F00', attrs: {lot: null}},
+      {name: '100', feature: 'conc', colour: '#111111', attrs: {lot: null}},
+      {name: '10', feature: 'conc', colour: '#222222', attrs: {lot: null}}];
+    const features = {line: {}, drug: {}, conc: {}};
+    const m = f => ({labels, features, attrTypes: {lot: 'number'}, fill: f});
+    const line = core.fillScale(m('line')), conc = core.fillScale(m('conc')), lot = core.fillScale(m('lot'));
+    const flat = core.fillScale({labels, features: {line: {}, drug: {}, conc: {scale: 'discrete'}}, attrTypes: {}, fill: 'conc'});
+    return {pickLine: core.wellPick([0, 1], line), noLine: core.wellPick([1], line),
+            pickDrug: core.wellPick([0, 1], core.fillScale(m('drug'))), concType: conc.type, low: conc.low,
+            flatType: flat.type, flatColour: flat.colour[2], lot: core.wellPick([1, 0], lot)};")
+  expect_equal(out$pickLine, 0)
+  expect_equal(out$noLine, -1)
+  expect_equal(out$pickDrug, 1)
+  expect_equal(out$concType, "continuous")
+  expect_equal(out$low, 10)
+  expect_equal(out$flatType, "discrete")
+  expect_equal(out$flatColour, "#111111")
+  expect_equal(out$lot, 0)
 })
 
 test_that("changing the plate moves wells", {
@@ -137,24 +176,28 @@ test_that("changing the plate moves wells", {
   expect_true(out$ok); expect_false(out$no)
 })
 
-test_that("the CSV reads back with read_plate_picker() and plots", {
-  text <- core("return core.csvText({wells: ['A01', 'A02', 'B01'], assign: [[0], [1], []],
-    labels: [{name: 'S1', group: 'Std', attrs: {conc: 1.5}}, {name: 'a, b', group: null, attrs: {conc: null}}],
-    attrNames: ['conc']});")
+test_that("the CSV has one row per well and reads back into mtpR", {
+  text <- core("return core.csvText({wells: ['A01', 'A02', 'B01'], assign: [[0, 2], [1], []],
+    features: {cell_line: {}, treatment: {}},
+    labels: [{name: 'HeLa', feature: 'cell_line', attrs: {lot: 1.5}}, {name: 'a, b', feature: 'cell_line', attrs: {lot: null}},
+             {name: 'Drug A', feature: 'treatment', attrs: {lot: null}}],
+    attrNames: ['lot']});")
   f <- tempfile(fileext = ".csv")
   writeLines(text, f, sep = "")
   d <- read_plate_picker(f)
+  expect_equal(names(d), c("well", "cell_line", "treatment", "lot"))
   expect_equal(d$well, c("A01", "A02"))
-  expect_equal(d$label, c("S1", "a, b"))
-  expect_equal(d$group, c("Std", NA))
-  expect_equal(d$conc, c(1.5, NA))
-  expect_s3_class(plot_plate(d, fill = "conc", well_id = "well", plate = 96), "ggplot")
+  expect_equal(d$cell_line, c("HeLa", "a, b"))
+  expect_equal(d$treatment, c("Drug A", NA))
+  expect_equal(d$lot, c(1.5, NA))
+  expect_s3_class(plot_plate(d, fill = "cell_line", well_id = "well", plate = 96), "ggplot")
+  expect_equal(as.character(plate_picker(96, value = d)$x$value$treatment), c("Drug A", NA))
 })
 
 test_that("the image is one standalone SVG with no outside references", {
-  svg <- core("return core.plateSVG({info: core.plateInfo(96), plate: 96, fill: 'conc', attrTypes: {conc: 'number'},
+  svg <- core("return core.plateSVG({info: core.plateInfo(96), plate: 96, fill: 'conc', features: {x: {}}, attrTypes: {conc: 'number'},
       assign: Array.from({length: 96}, (_, i) => i < 2 ? [i] : []),
-      labels: [{name: 'A<b', colour: '#0072B2', group: null, attrs: {conc: 1}}, {name: 'y', colour: '#E69F00', group: null, attrs: {conc: 8}}]},
+      labels: [{name: 'A<b', colour: '#0072B2', feature: 'x', attrs: {conc: 1}}, {name: 'y', colour: '#E69F00', feature: 'x', attrs: {conc: 8}}]},
       {title: 'T&T', legend: true, text: true, headers: true, width: 1200}).svg;")
   expect_match(svg, "^<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1200\"")
   expect_match(svg, "T&amp;T", fixed = TRUE)

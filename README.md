@@ -109,40 +109,41 @@ labels it cannot read or wells that are not on the plate.
 p <- plate_picker(96, labels = c("Blank", "Standard"))
 p                                    # click or drag across wells to paint them
 plate_picker_html(p, "plate.html")   # one offline file; Save page keeps the painting
-read_plate_picker("plate.html")      # data frame of well and label
+read_plate_picker("plate.html")      # one row per well
 ```
 
 In Shiny, use `plate_pickerOutput()` and `renderPlate_picker()`, read the result
 with `plate_picker_value(input$id)`, and change it with `update_plate_picker()`.
 
 `plate_picker()` is the portable drawing side of mtpR, so it uses the same names.
-Labels can be a data frame, like the `rxn_df` of `replicate_reactions()`:
+A well can carry several features at once, with one label per feature:
 
 ```r
-standards <- data.frame(
-  label = paste0("S", 1:4), group = "Standards",
-  conc_uM = c(100, 50, 25, 12.5)
+layers <- data.frame(
+  label   = c("HeLa", "HEK293", "Drug A", "Drug B", "100", "50"),
+  feature = rep(c("cell_line", "treatment", "conc_uM"), each = 2)
 )
 
-p <- plate_picker(96, labels = standards, locked = place_controls(96, "edge"))
+p <- plate_picker(96, labels = layers, locked = place_controls(96, "edge"))
 plate_picker_html(p, "plate.html", title = "Run 12")
 ```
 
-In the page you can:
+In the page, painting a label changes only that feature in those wells, so you can
+paint one layer at a time. You can also:
 
-- add and edit labels, groups and attributes
-- switch on *In sequence* for a group, so one click lays out all its labels from
+- add and edit features, labels and attributes
+- switch on *In sequence* for a feature, so one click lays out all its labels from
   that well, using `pattern`, `num_replicates`, `inter_spacing`, `intra_spacing`
   and `fill_wise` as in `replicate_reactions()`
-- change the plate size, or load a CSV
-- colour the plate with `fill` by label, group or attribute
+- change the plate size, or load a CSV with one row per well
+- colour the plate with `fill` by any feature or attribute
 - export a PNG, an SVG or a CSV, or use Save page to keep everything in one file
 
-The result reads straight back into R:
+The result has one row per well, and reads straight back into R:
 
 ```r
-d <- read_plate_picker("plate.html")   # well, label, group, conc_uM
-plot_plate(d, fill = "conc_uM", well_id = "well", plate = 96)
+d <- read_plate_picker("plate.html")   # well, cell_line, treatment, conc_uM
+plot_plate(d, fill = "treatment", well_id = "well", plate = 96)
 plate_picker(96, value = d)            # carry on painting
 ```
 

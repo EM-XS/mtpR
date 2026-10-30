@@ -25,7 +25,7 @@ Unlike \code{htmlwidgets::saveWidget(selfcontained = TRUE)} this does not need
 pandoc: the widget's JavaScript and CSS and the 'htmlwidgets' runtime are
 written into the page. The file opens offline without R. In it, Export and
 Save page are available (Save page downloads a copy of the page with the
-current plate, labels and painting, so reopening it restores them;
+current plate, features and painting, so reopening it restores them;
 \code{\link[=read_plate_picker]{read_plate_picker()}} reads it back).
 }
 \examples{

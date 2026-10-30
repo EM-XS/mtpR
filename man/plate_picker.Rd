@@ -12,11 +12,10 @@ plate_picker(
   locked = character(),
   active = NULL,
   colours = NULL,
-  multiple = FALSE,
   toolbar = TRUE,
   theme = c("auto", "light", "dark"),
   export_buttons = NULL,
-  fill = "label",
+  fill = NULL,
   editable = TRUE,
   width = NULL,
   height = NULL,
@@ -27,15 +26,15 @@ plate_picker(
 \item{plate}{Plate size, one of the sizes \code{\link[=platesize_check]{platesize_check()}} allows.}
 
 \item{labels}{Character vector of label names the user paints with, or a
-data frame with a \code{label} column (see Labels, groups and attributes).
+data frame with a \code{label} column (see Features, labels and attributes).
 \code{NULL} (the default) takes them from \code{value}, or gives one label,
 \code{"selected"}, for plain well selection.}
 
-\item{value}{Initial assignments: a data frame with columns \code{well} and
-\code{label}, or a named character vector (\code{c(A01 = "Blank")}). With
-\code{labels = NULL} a bare character vector of wells also works, and a data
-frame can also hold \code{group}, \code{colour} and attribute columns. Wells are
-checked against the plate and normalised (\code{"A1"} becomes \code{"A01"}).}
+\item{value}{Initial assignments: a data frame with a \code{well} column and a
+column per feature (a plain \code{well} and \code{label} works too), or a named
+character vector (\code{c(A01 = "Blank")}). With \code{labels = NULL} a bare character
+vector of wells also works. Wells are checked against the plate and
+normalised (\code{"A1"} becomes \code{"A01"}).}
 
 \item{background}{Optional data frame with columns \code{well} and \code{fill} (a
 colour), and optionally \code{text} and \code{tooltip}, drawn under the labels.}
@@ -47,9 +46,6 @@ plate from \code{\link[=place_controls]{place_controls()}}, which locks its cont
 
 \item{colours}{Optional named vector, label to colour.}
 
-\item{multiple}{If \code{FALSE} (default) a well holds one label and painting a
-new one replaces it; if \code{TRUE} a well may hold several.}
-
 \item{toolbar}{Show the toolbar?}
 
 \item{theme}{\code{"auto"} (follow \code{prefers-color-scheme}), \code{"light"} or \code{"dark"}.}
@@ -57,10 +53,10 @@ new one replaces it; if \code{TRUE} a well may hold several.}
 \item{export_buttons}{\code{NULL} (default) shows Export and Save page outside
 Shiny only; \code{TRUE} or \code{FALSE} forces them on or off.}
 
-\item{fill}{What colours the wells at first: \code{"label"} (default), \code{"group"}
-or an attribute name.}
+\item{fill}{The feature or attribute that colours the wells at first. \code{NULL}
+(the default) uses the first feature.}
 
-\item{editable}{Can the user change labels, groups and the plate, and load a
+\item{editable}{Can the user change features, labels and the plate, and load a
 CSV? Painting is always possible.}
 
 \item{width, height}{Widget size. The default width is the container width
@@ -91,29 +87,41 @@ Shift to redo) and Clear. The grid is keyboard accessible: arrow keys move a
 focus ring, Space or Enter toggles the focused well and Escape cancels a
 stroke in progress or closes a panel.
 }
-\section{Labels, groups and attributes}{
+\section{Features, labels and attributes}{
+
+A well can carry several characteristics at once, such as a cell line and a
+treatment. Each characteristic is a \emph{feature}, its possible values are its
+\emph{labels}, and a well holds at most one label per feature. Painting a label
+replaces only that feature's value in the wells it touches. The eraser works
+the same way, on the active feature. Labels with no feature are in a feature
+called \code{label}, so a plain \code{plate_picker(96, c("Blank", "Standard"))} gives the
+columns \code{well} and \code{label}.
 
 \code{labels} can be a data frame with one row per label, like the \code{rxn_df} of
-\code{\link[=replicate_reactions]{replicate_reactions()}}. It needs a \code{label} column and can have \code{group} and
-\code{colour} columns; every other column is an attribute of that label. A
-\code{value} data frame with these columns also works on its own, so a saved
-result goes straight back in: \code{plate_picker(96, value = read_plate_picker(f))}.
+\code{\link[=replicate_reactions]{replicate_reactions()}}. It needs a \code{label} column and can have \code{feature} and
+\code{colour} columns; every other column is an attribute of that label. A label
+name can appear in several features.
 
-Attributes belong to a label, not a well, in the same way as \code{rxn_df} columns
-belong to a reaction. With \code{editable = TRUE}, labels, groups and attributes
-can be added, changed and deleted in the browser, and Undo covers those
-changes too.
+The result has one row per well and one column per feature, then any
+attributes, so it goes straight into the rest of mtpR:
+\code{plot_plate(d, fill = "treatment", well_id = "well", plate = 96)}. A \code{value}
+data frame of the same shape works without \code{labels}, with each column as a
+feature: \code{plate_picker(96, value = read_plate_picker(f))}.
+
+With \code{editable = TRUE}, features, labels and attributes can be added, changed
+and deleted in the browser, and Undo covers those changes too.
 }
 
-\section{Painting a group in sequence}{
+\section{Painting a feature in sequence}{
 
-Switch on \emph{In sequence} for a group, and one click lays out all its labels
+Switch on \emph{In sequence} for a feature, and one click lays out all its labels
 from that well, the way \code{\link[=replicate_reactions]{replicate_reactions()}} does. The click is the
 \code{start_position}, and \code{pattern} (\code{"grouped"} or \code{"dealt"}), \code{num_replicates},
 \code{inter_spacing}, \code{intra_spacing} and \code{fill_wise} mean what they mean there.
-Locked wells act as \code{reserved}. Labels go in list order. Wells past the end of
-the plate are left out and counted, rather than moving on to a next plate. The
-panel shows the matching \code{\link[=replicate_reactions]{replicate_reactions()}} call.
+Locked wells act as \code{reserved}, and other features in those wells stay as they
+are. Labels go in list order. Wells past the end of the plate are left out and
+counted, rather than moving on to a next plate. The panel shows the matching
+\code{\link[=replicate_reactions]{replicate_reactions()}} call.
 }
 
 \section{Changing the plate}{
@@ -128,27 +136,31 @@ becomes a 2x2 square as in \code{\link[=well_quadrant]{well_quadrant()}}. In Shi
 \section{Loading a CSV}{
 
 Load CSV reads a comma, tab or semicolon separated file. A file with a well
-column is a finished layout and replaces the painting; one without is a list
-of labels to paint with. Columns are matched by name, including those of
-\code{\link[=place_controls]{place_controls()}} (\code{Well}, \code{Control}, \code{Role}) and \code{\link[=replicate_reactions]{replicate_reactions()}}
-(\code{reaction}, \code{replicate}, \code{position}), and can be reassigned before loading.
-Well labels are read by the \code{"common"} rule of \code{\link[=clean_wells]{clean_wells()}}.
+column is a finished layout with one row per well: every other column is a
+feature, and it replaces the painting. A file without one is a list of labels
+to paint with, with \code{label}, an optional \code{feature} and attributes. Columns that
+describe a layout rather than a well's contents, such as \code{replicate}, \code{position}
+and \code{Well.Index}, are ignored by default, and every column can be reassigned
+before loading. Well labels are read by the \code{"common"} rule of \code{\link[=clean_wells]{clean_wells()}}.
 }
 
 \section{Colours}{
 
 Labels get a fixed colour-blind-safer palette (eight hues, in a fixed order,
-then lighter rounds of them). The labels of a group share a hue, running dark
-to light. \code{fill} colours the plate by \code{"label"}, \code{"group"} or an attribute:
-numeric attributes use the continuous scale and NA colour of \code{\link[=plot_plate]{plot_plate()}},
-and other attributes one colour per value.
+then lighter rounds of them). The labels of a feature share a hue, running dark
+to light, except in the default \code{label} feature, where each takes its own.
+
+\code{fill} picks the feature or attribute that colours the plate, and picking a
+label shows its feature. Numbers use the continuous scale of \code{\link[=plot_plate]{plot_plate()}}
+unless a feature's \code{scale} is set to \code{"discrete"}, and a painted well with no
+value for \code{fill} uses the NA colour, as \code{\link[=plot_plate]{plot_plate()}} would draw it.
 }
 
 \section{Exporting}{
 
 Export (outside Shiny by default, see \code{export_buttons}) writes a PNG, an SVG
-or a CSV. The CSV has one row per well and label: \code{well}, \code{label}, \code{group} and
-each attribute. \code{\link[=read_plate_picker]{read_plate_picker()}} reads it back.
+or a CSV. The CSV has one row per well: \code{well}, a column per feature and each
+attribute. \code{\link[=read_plate_picker]{read_plate_picker()}} reads it back.
 }
 
 \section{Painting over a background}{
@@ -156,9 +168,8 @@ each attribute. \code{\link[=read_plate_picker]{read_plate_picker()}} reads it b
 \code{background} fills the wells themselves (for example a host app's reaction
 colours). A painted label is drawn on top as a rounded chip in the label's
 colour with a surface-coloured halo and a thin edge, so it stays readable on
-any background and at 384 and 1536 wells. With \code{multiple = TRUE} a well
-holding several labels shows the chip split into stacked stripes. Background
-\code{text} is printed over the chip when the wells are big enough (about 24 px).
+any background and at 384 and 1536 wells. Background \code{text} is printed over
+the chip when the wells are big enough (about 24 px).
 }
 
 \section{Shiny}{
@@ -178,10 +189,14 @@ p <- plate_picker(96, labels = c("Blank", "Standard"),
                   value = c(A01 = "Blank", A02 = "Blank", B01 = "Standard"))
 p
 
-# Labels with groups and attributes, like the `rxn_df` of replicate_reactions()
-standards <- data.frame(label = paste0("S", 1:4), group = "Standards",
-                        conc_uM = c(100, 50, 25, 12.5))
-plate_picker(96, labels = standards, fill = "conc_uM")
+# Two features: a well has one cell line and one treatment
+layers <- data.frame(label = c("HeLa", "HEK293", "Drug A", "Drug B"),
+                     feature = c("cell_line", "cell_line", "treatment", "treatment"))
+plate_picker(96, labels = layers)
+
+# The same shape as read_plate_picker() and the CSV export
+plate_picker(96, value = data.frame(well = c("A1", "A2"), cell_line = "HeLa",
+                                    treatment = c("Drug A", "Drug B")))
 
 # Keep the controls from place_controls() out of the painting
 plate_picker(96, c("Sample 1", "Sample 2"), locked = place_controls(96, "edge"))
