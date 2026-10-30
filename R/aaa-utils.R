@@ -25,6 +25,51 @@ plate_row_labels <- function(n) {
   labels[seq_len(n)]
 }
 
+#' Split well labels into rows and columns
+#'
+#' The one parser for `<letters><digits>` labels, and the `"common"` tier of
+#' [clean_wells()]. Case, padding, surrounding whitespace and one separator
+#' between row and column do not matter. Anything else, including labels with
+#' extra text such as `"A1B2"`, gives `NA` in both parts.
+#'
+#' @param x A vector of well labels.
+#'
+#' @return A list with `row` (upper-case letters) and `col` (numbers).
+#' @keywords internal
+#' @noRd
+parse_wells <- function(x) {
+  m <- stringr::str_match(as.character(x), "^\\s*([A-Za-z]+)[\\s_:-]?([0-9]+)\\s*$")
+  list(row = toupper(m[, 2]), col = as.numeric(m[, 3]))
+}
+
+#' Write wells in the standard form
+#'
+#' @param row Row letters.
+#' @param col Column numbers.
+#'
+#' @return Labels such as `"A01"` and `"AA12"`.
+#' @keywords internal
+#' @noRd
+format_wells <- function(row, col) {
+  sprintf("%s%02.0f", row, col)
+}
+
+#' Standardise well labels where the plate is not known
+#'
+#' @param x A vector of well labels.
+#'
+#' @return `x` in the standard form; text that is not a well is returned
+#'   unchanged, apart from case and surrounding whitespace.
+#' @keywords internal
+#' @noRd
+pad_wells <- function(x) {
+  parsed <- parse_wells(x)
+  out <- toupper(trimws(as.character(x)))
+  ok <- !is.na(parsed$row)
+  out[ok] <- format_wells(parsed$row[ok], parsed$col[ok])
+  out
+}
+
 #' Well labels for a plate, in fill order
 #'
 #' Helper for the plate designer UI: the full set of well labels for `plate`,

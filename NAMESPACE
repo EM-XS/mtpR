@@ -2,6 +2,7 @@
 
 export(add_plate_replicates)
 export(add_plates)
+export(clean_wells)
 export(convert_well)
 export(design_plate)
 export(picklist_summary)
@@ -16,14 +17,17 @@ export(platesize_check)
 export(plot_plate)
 export(plot_plate_pair)
 export(readPlate)
+export(read_plate)
 export(read_plate_picker)
 export(renderPlate_picker)
 export(replicate_reactions)
 export(to_rows_columns)
 export(update_plate_picker)
 export(well_quadrant)
-importFrom(dplyr,across)
-importFrom(dplyr,mutate)
-importFrom(dplyr,select)
+importFrom(dplyr,
+  across,
+  mutate,
+  select
+)
 importFrom(rlang,.data)
 importFrom(tidyr,uncount)

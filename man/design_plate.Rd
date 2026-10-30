@@ -7,7 +7,7 @@
 design_plate()
 }
 \value{
-A [shiny::shinyApp()] object.
+A \code{\link[shiny:shinyApp]{shiny::shinyApp()}} object.
 }
 \description{
 Launches a Shiny application for designing microtiter plate layouts: pick a
@@ -16,8 +16,12 @@ destination plate map as a plot and a downloadable table.
 }
 \section{Status}{
 
-This GUI is **experimental**. The programmatic functions it wraps
-([replicate_reactions()], [add_plates()], [add_plate_replicates()],
-[convert_well()], [plot_plate()]) are the supported interface.
+This GUI is \strong{experimental}. The programmatic functions it wraps
+(\code{\link[=replicate_reactions]{replicate_reactions()}}, \code{\link[=add_plates]{add_plates()}}, \code{\link[=add_plate_replicates]{add_plate_replicates()}},
+\code{\link[=convert_well]{convert_well()}}, \code{\link[=plot_plate]{plot_plate()}}) are the supported interface.
 }
 
+\seealso{
+\code{\link[=plate_picker]{plate_picker()}} to place wells by hand; this app lays them out from
+rules.
+}

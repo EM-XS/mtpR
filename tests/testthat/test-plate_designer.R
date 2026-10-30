@@ -19,7 +19,7 @@ test_that("plate_designer_server builds a plate map on demand", {
   shiny::testServer(plate_designer_server, args = list(id = "Setup"), {
     session$setInputs(
       destplate = "96", fillwise = "row", rxnCount = 8, replicatecount = 3,
-      platereplicates = 2, deststartwell = "A01", replicatestyle = "Reaction",
+      platereplicates = 2, deststartwell = "A01", replicatestyle = "grouped",
       interwell = 1, intrawell = 1, createPlateMap = 1
     )
     pm <- plate_map()
@@ -47,7 +47,7 @@ test_that("plate_designer_server surfaces build failures as a validation message
     # seq_len() throw inside the pipeline.
     session$setInputs(
       destplate = "96", fillwise = "row", rxnCount = -1, replicatecount = 3,
-      platereplicates = 1, deststartwell = "A01", replicatestyle = "Reaction",
+      platereplicates = 1, deststartwell = "A01", replicatestyle = "grouped",
       interwell = 1, intrawell = 1, createPlateMap = 1
     )
     # eventReactive should raise a shiny.silent.error (validation), not a raw error

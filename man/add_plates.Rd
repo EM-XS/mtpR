@@ -14,8 +14,8 @@ add_plates(df, well_index_column, plate_size)
 \item{plate_size}{Number of wells per plate.}
 }
 \value{
-Data frame with added `Plate.Index` indicating plate number
-        and renumbered `Well.Index` within each plate.
+Data frame with added \code{Plate.Index} indicating plate number
+and renumbered \code{Well.Index} within each plate.
 }
 \description{
 Renumber wells across multiple plates

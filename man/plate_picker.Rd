@@ -12,45 +12,52 @@ plate_picker(
   locked = character(),
   active = NULL,
   colours = NULL,
-  multiple = FALSE,
   toolbar = TRUE,
   theme = c("auto", "light", "dark"),
   export_buttons = NULL,
+  fill = NULL,
+  editable = TRUE,
   width = NULL,
   height = NULL,
   elementId = NULL
 )
 }
 \arguments{
-\item{plate}{Plate size, one of the sizes [platesize_check()] allows.}
+\item{plate}{Plate size, one of the sizes \code{\link[=platesize_check]{platesize_check()}} allows.}
 
-\item{labels}{Character vector of label names the user paints with, at most
-eight unless `colours` names a colour for each. `NULL` (the default) gives
-one label, `"selected"`, for plain well selection.}
+\item{labels}{Character vector of label names the user paints with, or a
+data frame with a \code{label} column (see Features, labels and attributes).
+\code{NULL} (the default) takes them from \code{value}, or gives one label,
+\code{"selected"}, for plain well selection.}
 
-\item{value}{Initial assignments: a data frame with columns `well` and
-`label`, or a named character vector (`c(A01 = "Blank")`). With
-`labels = NULL` a bare character vector of wells also works. Wells are
-checked against the plate and normalised (`"A1"` becomes `"A01"`).}
+\item{value}{Initial assignments: a data frame with a \code{well} column and a
+column per feature (a plain \code{well} and \code{label} works too), or a named
+character vector (\code{c(A01 = "Blank")}). With \code{labels = NULL} a bare character
+vector of wells also works. Wells are checked against the plate and
+normalised (\code{"A1"} becomes \code{"A01"}).}
 
-\item{background}{Optional data frame with columns `well` and `fill` (a
-colour), and optionally `text` and `tooltip`, drawn under the labels.}
+\item{background}{Optional data frame with columns \code{well} and \code{fill} (a
+colour), and optionally \code{text} and \code{tooltip}, drawn under the labels.}
 
-\item{locked}{Wells that cannot be painted; drawn muted.}
+\item{locked}{Wells that cannot be painted, drawn muted: well labels, or a
+plate from \code{\link[=place_controls]{place_controls()}}, which locks its controls.}
 
 \item{active}{The label the brush starts with (default: the first).}
 
 \item{colours}{Optional named vector, label to colour.}
 
-\item{multiple}{If `FALSE` (default) a well holds one label and painting a
-new one replaces it; if `TRUE` a well may hold several.}
-
 \item{toolbar}{Show the toolbar?}
 
-\item{theme}{`"auto"` (follow `prefers-color-scheme`), `"light"` or `"dark"`.}
+\item{theme}{\code{"auto"} (follow \code{prefers-color-scheme}), \code{"light"} or \code{"dark"}.}
 
-\item{export_buttons}{`NULL` (default) shows Copy rows, Download CSV and Save
-page outside Shiny only; `TRUE` or `FALSE` forces them on or off.}
+\item{export_buttons}{\code{NULL} (default) shows Export and Save page outside
+Shiny only; \code{TRUE} or \code{FALSE} forces them on or off.}
+
+\item{fill}{The feature or attribute that colours the wells at first. \code{NULL}
+(the default) uses the first feature.}
+
+\item{editable}{Can the user change features, labels and the plate, and load a
+CSV? Painting is always possible.}
 
 \item{width, height}{Widget size. The default width is the container width
 and the height follows from it.}
@@ -63,7 +70,9 @@ An 'htmlwidgets' object.
 \description{
 An 'htmlwidgets' plate map you click or drag across to give wells labels
 ("paint" them). It works in Shiny, in R Markdown and the RStudio viewer, and
-as a standalone offline HTML file ([plate_picker_html()]).
+as a standalone offline HTML file (\code{\link[=plate_picker_html]{plate_picker_html()}}). It is the portable
+drawing side of mtpR: it uses the same names as the R functions, and what it
+exports reads straight back into them.
 }
 \details{
 The widget is a plain SVG grid with row letters and column numbers as
@@ -72,44 +81,125 @@ along a stroke (a drag that starts on a well already holding the active
 label erases along the stroke instead); click a row letter or column number
 to paint the whole line, or to clear it when every well in it already has the
 label; hold Shift while dragging to paint a rectangle. Locked wells are
-skipped. The toolbar has one chip per label (also keys 1-9), an eraser,
-Undo/Redo (Ctrl/Cmd+Z, with Shift to redo), Clear and a live count per label.
-The grid is keyboard accessible: arrow keys move a focus ring, Space or
-Enter toggles the focused well and Escape cancels a stroke in progress.
+skipped. The side panel lists the labels with a live count (keys 1-9 pick
+the first nine), and the toolbar has an eraser, Undo/Redo (Ctrl/Cmd+Z, with
+Shift to redo) and Clear. The grid is keyboard accessible: arrow keys move a
+focus ring, Space or Enter toggles the focused well and Escape cancels a
+stroke in progress or closes a panel.
 }
+\section{Features, labels and attributes}{
+
+A well can carry several characteristics at once, such as a cell line and a
+treatment. Each characteristic is a \emph{feature}, its possible values are its
+\emph{labels}, and a well holds at most one label per feature. Painting a label
+replaces only that feature's value in the wells it touches. The eraser works
+the same way, on the active feature. Labels with no feature are in a feature
+called \code{label}, so a plain \code{plate_picker(96, c("Blank", "Standard"))} gives the
+columns \code{well} and \code{label}.
+
+\code{labels} can be a data frame with one row per label, like the \code{rxn_df} of
+\code{\link[=replicate_reactions]{replicate_reactions()}}. It needs a \code{label} column and can have \code{feature} and
+\code{colour} columns; every other column is an attribute of that label. A label
+name can appear in several features.
+
+The result has one row per well and one column per feature, then any
+attributes, so it goes straight into the rest of mtpR:
+\code{plot_plate(d, fill = "treatment", well_id = "well", plate = 96)}. A \code{value}
+data frame of the same shape works without \code{labels}, with each column as a
+feature: \code{plate_picker(96, value = read_plate_picker(f))}.
+
+With \code{editable = TRUE}, features, labels and attributes can be added, changed
+and deleted in the browser, and Undo covers those changes too.
+}
+
+\section{Painting a feature in sequence}{
+
+Switch on \emph{In sequence} for a feature, and one click lays out all its labels
+from that well, the way \code{\link[=replicate_reactions]{replicate_reactions()}} does. The click is the
+\code{start_position}, and \code{pattern} (\code{"grouped"} or \code{"dealt"}), \code{num_replicates},
+\code{inter_spacing}, \code{intra_spacing} and \code{fill_wise} mean what they mean there.
+Locked wells act as \code{reserved}, and other features in those wells stay as they
+are. Labels go in list order. Wells past the end of the plate are left out and
+counted, rather than moving on to a next plate. The panel shows the matching
+\code{\link[=replicate_reactions]{replicate_reactions()}} call.
+}
+
+\section{Changing the plate}{
+
+With \code{editable = TRUE} the toolbar's plate list changes the size. With painted
+wells it first shows what will happen: keep positions, fill in order, or (when
+the new plate has twice the rows and columns) \code{quadrants}, where each well
+becomes a 2x2 square as in \code{\link[=well_quadrant]{well_quadrant()}}. In Shiny the size is reported as
+\verb{input$<id>_plate}.
+}
+
+\section{Loading a CSV}{
+
+Load CSV reads a comma, tab or semicolon separated file. A file with a well
+column is a finished layout with one row per well: every other column is a
+feature, and it replaces the painting. A file without one is a list of labels
+to paint with, with \code{label}, an optional \code{feature} and attributes. Columns that
+describe a layout rather than a well's contents, such as \code{replicate}, \code{position}
+and \code{Well.Index}, are ignored by default, and every column can be reassigned
+before loading. Well labels are read by the \code{"common"} rule of \code{\link[=clean_wells]{clean_wells()}}.
+}
+
 \section{Colours}{
 
-Labels get a fixed colour-blind-safer palette (eight hues, in a fixed order).
-There are only eight default colours, so more than eight labels is an error
-unless `colours` gives a colour for every label.
+Labels get a fixed colour-blind-safer palette (eight hues, in a fixed order,
+then lighter rounds of them). The labels of a feature share a hue, running dark
+to light, except in the default \code{label} feature, where each takes its own.
+
+\code{fill} picks the feature or attribute that colours the plate, and picking a
+label shows its feature. Numbers use the continuous scale of \code{\link[=plot_plate]{plot_plate()}}
+unless a feature's \code{scale} is set to \code{"discrete"}, and a painted well with no
+value for \code{fill} uses the NA colour, as \code{\link[=plot_plate]{plot_plate()}} would draw it.
+}
+
+\section{Exporting}{
+
+Export (outside Shiny by default, see \code{export_buttons}) writes a PNG, an SVG
+or a CSV. The CSV has one row per well: \code{well}, a column per feature and each
+attribute. \code{\link[=read_plate_picker]{read_plate_picker()}} reads it back.
 }
 
 \section{Painting over a background}{
 
-`background` fills the wells themselves (for example a host app's reaction
+\code{background} fills the wells themselves (for example a host app's reaction
 colours). A painted label is drawn on top as a rounded chip in the label's
 colour with a surface-coloured halo and a thin edge, so it stays readable on
-any background and at 384 and 1536 wells. With `multiple = TRUE` a well
-holding several labels shows the chip split into stacked stripes. Background
-`text` is printed over the chip when the wells are big enough (about 24 px).
+any background and at 384 and 1536 wells. Background \code{text} is printed over
+the chip when the wells are big enough (about 24 px).
 }
 
 \section{Shiny}{
 
-The widget sets `input$<id>` to the assignments at the end of every stroke,
+The widget sets \verb{input$<id>} to the assignments at the end of every stroke,
 header click, undo, redo and clear (not on every pointer move), and
-`input$<id>_active` to the active label when it changes. Shiny delivers the
-assignments as a *list* of `well` and `label` vectors (each itself a list);
-turn it into a data frame with [plate_picker_value()]. Use
-[update_plate_picker()] to change the painting without re-rendering. The
-Copy rows, Download CSV and Save page buttons are hidden in Shiny unless
-`export_buttons = TRUE`.
+\verb{input$<id>_active} to the active label when it changes. Shiny delivers the
+assignments as a \emph{list} of \code{well} and \code{label} vectors (each itself a list);
+turn it into a data frame with \code{\link[=plate_picker_value]{plate_picker_value()}}. Use
+\code{\link[=update_plate_picker]{update_plate_picker()}} to change the painting without re-rendering. The
+Export and Save page buttons are hidden in Shiny unless
+\code{export_buttons = TRUE}.
 }
 
 \examples{
 p <- plate_picker(96, labels = c("Blank", "Standard"),
                   value = c(A01 = "Blank", A02 = "Blank", B01 = "Standard"))
 p
+
+# Two features: a well has one cell line and one treatment
+layers <- data.frame(label = c("HeLa", "HEK293", "Drug A", "Drug B"),
+                     feature = c("cell_line", "cell_line", "treatment", "treatment"))
+plate_picker(96, labels = layers)
+
+# The same shape as read_plate_picker() and the CSV export
+plate_picker(96, value = data.frame(well = c("A1", "A2"), cell_line = "HeLa",
+                                    treatment = c("Drug A", "Drug B")))
+
+# Keep the controls from place_controls() out of the painting
+plate_picker(96, c("Sample 1", "Sample 2"), locked = place_controls(96, "edge"))
 
 if (interactive()) {
   library(shiny)
@@ -122,6 +212,7 @@ if (interactive()) {
 }
 }
 \seealso{
-[plate_picker_html()], [read_plate_picker()], [plate_picker_value()],
-  [update_plate_picker()]
+\code{\link[=plate_picker_html]{plate_picker_html()}}, \code{\link[=read_plate_picker]{read_plate_picker()}}, \code{\link[=plate_picker_value]{plate_picker_value()}},
+\code{\link[=update_plate_picker]{update_plate_picker()}}. \code{\link[=design_plate]{design_plate()}} lays wells out from rules instead
+of by hand.
 }

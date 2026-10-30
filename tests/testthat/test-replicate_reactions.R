@@ -39,3 +39,10 @@ test_that("bad arguments error", {
     "does not exist"
   )
 })
+
+test_that("NA reaction identifiers are an error", {
+  expect_error(
+    replicate_reactions(data.frame(r = c(1, NA, 3)), "r", 1, pattern = "grouped"),
+    "must not be NA"
+  )
+})

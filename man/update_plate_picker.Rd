@@ -10,7 +10,10 @@ update_plate_picker(
   value = NULL,
   active = NULL,
   locked = NULL,
-  background = NULL
+  background = NULL,
+  plate = NULL,
+  labels = NULL,
+  fill = NULL
 )
 }
 \arguments{
@@ -19,23 +22,31 @@ update_plate_picker(
 \item{id}{The output id of the widget (not namespaced; the session's
 namespace is added).}
 
-\item{value}{New assignments, as for [plate_picker()]. `NULL` leaves the
+\item{value}{New assignments, as for \code{\link[=plate_picker]{plate_picker()}}. \code{NULL} leaves the
 painting alone, an empty data frame clears it.}
 
 \item{active}{A label to make the active brush.}
 
-\item{locked}{New locked wells (`character()` unlocks everything).}
+\item{locked}{New locked wells (\code{character()} unlocks everything), or a plate
+from \code{\link[=place_controls]{place_controls()}}.}
 
-\item{background}{New background data frame (see [plate_picker()]).}
+\item{background}{New background data frame (see \code{\link[=plate_picker]{plate_picker()}}).}
+
+\item{plate}{New plate size. Wells keep their positions, and wells that are
+not on the new plate are removed.}
+
+\item{labels}{New labels, as for \code{\link[=plate_picker]{plate_picker()}}.}
+
+\item{fill}{New \code{fill}, as for \code{\link[=plate_picker]{plate_picker()}}.}
 }
 \value{
-Called for its side effect; returns `NULL` invisibly.
+Called for its side effect; returns \code{NULL} invisibly.
 }
 \description{
 Sends the new state to the browser, which redraws only what changed (the
 painting can be undone with the widget's Undo). The widget then reports the
-new assignments through `input$<id>` as usual. `NULL` leaves a setting alone;
-to clear something pass an empty value (`character()`, or a data frame with
+new assignments through \verb{input$<id>} as usual. \code{NULL} leaves a setting alone;
+to clear something pass an empty value (\code{character()}, or a data frame with
 no rows).
 }
 \examples{

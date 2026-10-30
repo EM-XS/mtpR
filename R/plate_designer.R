@@ -10,6 +10,8 @@
 #' [convert_well()], [plot_plate()]) are the supported interface.
 #'
 #' @return A [shiny::shinyApp()] object.
+#' @seealso [plate_picker()] to place wells by hand; this app lays them out from
+#'   rules.
 #' @export
 design_plate <- function() {
 
@@ -70,8 +72,8 @@ plate_designer_ui <- function(id) {
       shiny::tags$hr(),
       shiny::selectInput(
         ns("replicatestyle"), "Group by",
-        choices = c(`Reaction, then replicates` = "Reaction",
-                    `Replicate, then reactions` = "Replicate")
+        choices = c(`Reaction, then replicates` = "grouped",
+                    `Replicate, then reactions` = "dealt")
       ),
       shiny::numericInput(
         ns("interwell"), "Spacing between groups (wells)",
@@ -134,7 +136,7 @@ plate_designer_server <- function(id) {
             replicate_reactions(
               reaction_col_name = "reaction_count",
               num_replicates = input$replicatecount,
-              priority = input$replicatestyle,
+              pattern = input$replicatestyle,
               inter_spacing = input$interwell,
               intra_spacing = input$intrawell,
               start_position = convert_well(

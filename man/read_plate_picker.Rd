@@ -10,13 +10,13 @@ read_plate_picker(file)
 \item{file}{Path to the CSV or HTML file.}
 }
 \value{
-A data frame with character columns `well` and `label`, in plate
-  order.
+A data frame with one row per well, in plate order: a character column
+\code{well}, then a column for each feature and attribute.
 }
 \description{
-Reads either a CSV downloaded with the widget's Download CSV button or a page
+Reads either a CSV downloaded with the widget's Export button or a page
 saved with its Save page button (the painting is kept in a
-`<script type="application/json" id="mtpr-picker-state">` block).
+\verb{<script type="application/json" id="mtpr-picker-state">} block).
 }
 \examples{
 f <- tempfile(fileext = ".html")

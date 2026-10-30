@@ -33,3 +33,19 @@ test_that("invalid input is rejected", {
   expect_error(convert_well("A01", "to_num", plate = 96, wise = "diagonal"), "row.*col")
   expect_error(convert_well("A01", "to_num", plate = 100), "Unsupported plate size")
 })
+
+test_that("malformed well labels are rejected, not read as another well", {
+  for (bad in c("A1B2", "1A", "A", "R1C1", "Well A1")) {
+    expect_error(convert_well(bad, "to_num"), "not in the form")
+  }
+})
+
+test_that("labels are read by the common rule", {
+  expect_equal(convert_well(c("A1", "a01", "A001", " A1", "A 1", "A-5", "A_5", "A:5"), "to_num"),
+               c(1, 1, 1, 1, 1, 5, 5, 5))
+})
+
+test_that("non-whole and NA indices are rejected", {
+  expect_error(convert_well(1.5, "to_well"), "whole numbers")
+  expect_error(convert_well(c(1, NA), "to_well"), "whole numbers")
+})

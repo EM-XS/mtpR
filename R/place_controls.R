@@ -20,8 +20,8 @@
 #' * `"quadrant"`: every well in quadrant(s) `quadrant` (1-4) of the 2x2
 #'   squares that tile the plate; see [well_quadrant()]. Several quadrants can
 #'   be given.
-#' * `"every"`: deprecated. Use `"lines"` for whole columns or rows, or
-#'   `"spread"` for `n` wells spread out.
+#' * `"every"`: deprecated, and will be removed in mtpR 0.5.0. Use `"lines"` for
+#'   whole columns or rows, or `"spread"` for `n` wells spread out.
 #'
 #' Calls can be chained: give an earlier result as `plate` to reserve more
 #' wells. If a later call takes a well that an earlier call already reserved,
@@ -244,7 +244,7 @@ empty_plate_map <- function(size, wise = "row") {
 # Single wells ("A1", "A01") and rectangular ranges ("A01:B12") -> well labels.
 expand_wells <- function(wells, size) {
   info <- platesize_check(size)
-  w <- toupper(gsub("\\s+", "", as.character(wells)))
+  w <- gsub("\\s+", "", as.character(wells))
   to_rc <- function(x) {
     num <- convert_well(x, "to_num", plate = size, wise = "row")
     list(row = (num - 1) %/% info$colmax + 1, col = (num - 1) %% info$colmax + 1)
@@ -295,7 +295,7 @@ resolve_lines <- function(lines, by, info) {
 # Start well (label or position number) -> position number in fill order.
 resolve_start <- function(start, size, wise) {
   if (is.character(start)) {
-    return(convert_well(toupper(start), "to_num", plate = size, wise = wise))
+    return(convert_well(start, "to_num", plate = size, wise = wise))
   }
   info <- platesize_check(size)
   if (length(start) != 1 || is.na(start) || start < 1 || start > info$rowmax * info$colmax) {
@@ -313,7 +313,7 @@ spread_index <- function(n, among) {
 
 lifecycle_warn_every <- function() {
   rlang::warn(
-    c("`place_controls(method = \"every\")` is deprecated.",
+    c("`place_controls(method = \"every\")` is deprecated and will be removed in mtpR 0.5.0.",
       i = "Use method = \"lines\" for whole columns or rows (e.g. lines = c(1, 5, 9)),",
       i = "or method = \"spread\" for n wells spread out."),
     .frequency = "once", .frequency_id = "mtpR_place_controls_every"
@@ -349,9 +349,7 @@ plate_roles <- function(plate, reactions, well_id = "Well.Position") {
     reactions <- reactions[[well_id]]
   }
   size <- attr(plate, "plate")
-  w <- toupper(as.character(reactions))
-  num <- convert_well(w, "to_num", plate = size, wise = "row")
-  w <- convert_well(num, "to_well", plate = size, wise = "row")
+  w <- clean_wells(as.character(reactions), plate = size)
   clash <- plate$Well[plate$Role == "control" & plate$Well %in% w]
   if (length(clash)) {
     stop("Reactions are placed on reserved wells: ",
@@ -379,7 +377,7 @@ reserved_positions <- function(reserved, plate = NULL, wise = "row") {
   size <- platesize_check(plate)
   size <- size$rowmax * size$colmax
   if (is.character(reserved)) {
-    pos <- convert_well(toupper(reserved), "to_num", plate = plate, wise = wise)
+    pos <- convert_well(reserved, "to_num", plate = plate, wise = wise)
   } else if (is.numeric(reserved)) {
     if (any(reserved < 1 | reserved > size)) {
       stop("Reserved positions must be between 1 and ", size, ".", call. = FALSE)

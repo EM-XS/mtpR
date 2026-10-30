@@ -26,7 +26,7 @@
 #' @export
 well_quadrant <- function(well, plate = 96) {
   check_quadrant_plate(plate)
-  num <- convert_well(toupper(as.character(well)), "to_num", plate = plate, wise = "row")
+  num <- convert_well(as.character(well), "to_num", plate = plate, wise = "row")
   info <- platesize_check(plate)
   row <- (num - 1) %/% info$colmax + 1
   col <- (num - 1) %% info$colmax + 1

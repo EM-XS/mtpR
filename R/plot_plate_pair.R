@@ -48,9 +48,8 @@ picklist_summary <- function(transfers,
   }
   sp <- col_or_all(source_plate_col)
   dp <- col_or_all(dest_plate_col)
-  canon <- function(w) sub("^([A-Z]+)0*([0-9]+)$", "\\1\\2", toupper(as.character(w)))
-  sw <- canon(transfers[[source_well]])
-  dw <- canon(transfers[[dest_well]])
+  sw <- pad_wells(transfers[[source_well]])
+  dw <- pad_wells(transfers[[dest_well]])
   vol <- if (is.null(volume)) rep(NA_real_, nrow(transfers)) else as.numeric(transfers[[volume]])
 
   by_plate <- function(plate, well, label, name) {
@@ -481,7 +480,7 @@ plate_titles <- function(lay, side, caption, x_offset) {
              stringsAsFactors = FALSE)
 }
 
-# "A01"/"a1" -> "A1", checked against the plate size.
+# "A1"/"a01" -> "A01", checked against the plate size.
 well_key <- function(wells, info, size, what) {
   wells <- as.character(wells)
   if (anyNA(wells)) {
@@ -493,7 +492,7 @@ well_key <- function(wells, info, size, what) {
     stop(what, " well '", wells[bad][1], "' does not fit a ", size,
          "-well plate.", call. = FALSE)
   }
-  paste0(info$rows[rc$Row], rc$Column)
+  format_wells(info$rows[rc$Row], rc$Column)
 }
 
 # One row per used well. `uid` is "<plate>:<well>".

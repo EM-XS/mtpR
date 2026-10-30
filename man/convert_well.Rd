@@ -7,11 +7,12 @@
 convert_well(input, direction, plate = 96, wise = "row")
 }
 \arguments{
-\item{input}{A vector of well labels (as character) or numeric indices (as numeric) to be converted.}
+\item{input}{A vector of well labels (as character, read as in the \code{"common"}
+mode of \code{\link[=clean_wells]{clean_wells()}}) or numeric indices (as numeric) to be converted.}
 
 \item{direction}{Character; specifies the conversion direction, either "to_num" or "to_well".}
 
-\item{plate}{The size of the well plate (96, 384, or 1536 are supported).}
+\item{plate}{The size of the well plate (see \code{\link[=platesize_check]{platesize_check()}}).}
 
 \item{wise}{Character; specifies direction the plate is filled ("row" or "col" wise).
 Applicable for both "to_num" and "to_well" directions.}
@@ -21,4 +22,9 @@ A vector of converted well labels or numeric indices.
 }
 \description{
 Convert between well labels and numeric indices
+}
+\examples{
+convert_well(c("A01", "B12"), "to_num", plate = 96)
+convert_well(c(1, 24), "to_well", plate = 96)
+convert_well(2, "to_well", plate = 96, wise = "col")
 }

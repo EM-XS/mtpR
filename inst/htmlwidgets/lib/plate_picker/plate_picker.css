@@ -72,6 +72,67 @@
 .mtpr-picker .mtpr-count { color: var(--mtpr-muted); font-variant-numeric: tabular-nums; }
 .mtpr-picker .mtpr-status { min-height: 1.35em; color: var(--mtpr-muted); font-size: 12px; margin-top: 6px; }
 .mtpr-picker .mtpr-hide { display: none !important; }
+.mtpr-picker button.mtpr-btn.mtpr-primary { background: var(--mtpr-focus); border-color: var(--mtpr-focus); color: var(--mtpr-surface); font-weight: 600; }
+.mtpr-picker .mtpr-grow { flex: 1 1 8px; }
+.mtpr-picker .mtpr-select, .mtpr-picker .mtpr-input {
+  font: inherit; color: inherit; background: var(--mtpr-chip-bg); border: 1px solid var(--mtpr-grid);
+  border-radius: 6px; padding: 3px 6px; box-sizing: border-box; min-width: 0;
+}
+.mtpr-picker .mtpr-select:focus-visible, .mtpr-picker .mtpr-input:focus-visible { outline: 2px solid var(--mtpr-focus); outline-offset: 1px; }
+.mtpr-picker .mtpr-field-inline { display: inline-flex; align-items: center; gap: 6px; color: var(--mtpr-muted); }
+.mtpr-picker .mtpr-field { display: grid; grid-template-columns: 7.5em minmax(0, 1fr); align-items: center; gap: 6px; color: var(--mtpr-muted); }
+.mtpr-picker .mtpr-field .mtpr-input, .mtpr-picker .mtpr-field .mtpr-select { width: 100%; color: var(--mtpr-ink); }
+.mtpr-picker .mtpr-colour { width: 100%; height: 26px; padding: 0; background: none; border: 1px solid var(--mtpr-grid); border-radius: 6px; }
+.mtpr-picker .mtpr-heading { margin: 0; font-size: 13px; font-weight: 700; flex: 1 1 auto; outline: none; }
+
+.mtpr-picker .mtpr-body { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; }
+.mtpr-picker .mtpr-wrap { flex: 999 1 420px; min-width: 0; }
+.mtpr-picker .mtpr-side { flex: 1 1 250px; max-width: 340px; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.mtpr-picker .mtpr-row { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.mtpr-picker .mtpr-group { border: 1px solid var(--mtpr-grid); border-radius: 6px; padding: 5px; display: flex; flex-direction: column; gap: 3px; }
+.mtpr-picker .mtpr-group-on { border-color: var(--mtpr-focus); }
+.mtpr-picker .mtpr-group-name { flex: 1 1 auto; min-width: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mtpr-picker button.mtpr-label {
+  font: inherit; color: inherit; cursor: pointer; flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 6px;
+  padding: 3px 6px; background: transparent; border: 1px solid transparent; border-radius: 6px; text-align: left;
+}
+.mtpr-picker button.mtpr-label:hover { border-color: var(--mtpr-grid); }
+.mtpr-picker button.mtpr-label[aria-pressed="true"] { background: var(--mtpr-chip-on); border-color: var(--mtpr-focus); }
+.mtpr-picker button.mtpr-label:focus-visible, .mtpr-picker button.mtpr-edit:focus-visible { outline: 2px solid var(--mtpr-focus); outline-offset: 1px; }
+.mtpr-picker .mtpr-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mtpr-picker button.mtpr-edit {
+  font: inherit; font-size: 12px; color: var(--mtpr-muted); cursor: pointer; flex: none; padding: 2px 6px;
+  background: transparent; border: 1px solid transparent; border-radius: 6px;
+}
+.mtpr-picker button.mtpr-edit:hover { border-color: var(--mtpr-grid); color: var(--mtpr-ink); }
+.mtpr-picker button.mtpr-edit[aria-pressed="true"] { background: var(--mtpr-chip-on); border-color: var(--mtpr-focus); color: var(--mtpr-ink); }
+.mtpr-picker .mtpr-editor { display: flex; flex-direction: column; gap: 5px; padding: 6px; background: var(--mtpr-chip-bg); border-radius: 6px; }
+.mtpr-picker .mtpr-editor .mtpr-input, .mtpr-picker .mtpr-editor .mtpr-select { background: var(--mtpr-surface); }
+.mtpr-picker .mtpr-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.mtpr-picker .mtpr-hint { margin: 0; color: var(--mtpr-muted); font-size: 12px; }
+.mtpr-picker .mtpr-call { display: block; font: 11px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; overflow-wrap: anywhere; color: var(--mtpr-muted); }
+
+.mtpr-picker .mtpr-panel { border: 1px solid var(--mtpr-grid); border-radius: 6px; padding: 10px; margin-bottom: 8px; display: flex; flex-direction: column; gap: 8px; }
+.mtpr-picker .mtpr-panel-body { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.mtpr-picker .mtpr-compare { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-start; }
+.mtpr-picker .mtpr-compare-side { flex: 1 1 240px; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.mtpr-picker .mtpr-figure { margin: 0; flex: 0 1 auto; min-width: 0; max-width: 100%; }
+.mtpr-picker .mtpr-figure figcaption { font-weight: 600; margin-bottom: 4px; }
+.mtpr-picker .mtpr-figure svg { display: block; max-width: 100%; height: auto; }
+.mtpr-picker .mtpr-export-preview { flex: 999 1 320px; }
+.mtpr-picker .mtpr-choice { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.mtpr-picker .mtpr-choice-name { min-width: 9em; color: var(--mtpr-muted); }
+.mtpr-picker .mtpr-result { margin: 0; font-weight: 600; }
+.mtpr-picker .mtpr-scroll { overflow-x: auto; }
+.mtpr-picker .mtpr-table { border-collapse: collapse; min-width: 100%; }
+.mtpr-picker .mtpr-table th, .mtpr-picker .mtpr-table td { padding: 4px 8px; border-bottom: 1px solid var(--mtpr-grid); text-align: left; white-space: nowrap; }
+.mtpr-picker .mtpr-table th .mtpr-select { display: block; margin-top: 3px; font-weight: 400; }
+.mtpr-picker .mtpr-badrow td { background: rgba(213, 94, 0, 0.14); }
+.mtpr-picker .mtpr-check { display: flex; gap: 8px; align-items: baseline; }
+.mtpr-picker .mtpr-check strong { min-width: 5em; }
+.mtpr-picker .mtpr-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin-top: 6px; }
+.mtpr-picker .mtpr-legend-key { display: inline-flex; align-items: center; gap: 5px; }
+.mtpr-picker .mtpr-ramp { width: 120px; height: 12px; border: 1px solid var(--mtpr-edge); border-radius: 2px; background: linear-gradient(to right, #f4efe6, #2b7a8c); }
 
 .mtpr-picker svg.mtpr-grid {
   display: block; width: 100%; height: auto; margin: 0 auto;

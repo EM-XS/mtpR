@@ -20,50 +20,52 @@ plate_capacity(
 \item{n_reactions}{Number of reactions (one number).}
 
 \item{replicates}{Replicates per reaction: one number, or a vector with one
-entry per reaction (then `n_reactions` may be left out).}
+entry per reaction (then \code{n_reactions} may be left out).}
 
 \item{copies}{Number of copies of the whole layout (plate replicates).}
 
-\item{plate}{Plate size (see [platesize_check()]).}
+\item{plate}{Plate size (see \code{\link[=platesize_check]{platesize_check()}}).}
 
 \item{controls}{Wells reserved on each plate: a number, or a plate from
-[place_controls()].}
+\code{\link[=place_controls]{place_controls()}}.}
 
 \item{spacing}{Distance between neighbouring wells in the layout (1 = no gaps).}
 
 \item{plates}{Number of plates available.}
 
-\item{error}{If `TRUE` (default) stop with an explanation when the layout does
-not fit; if `FALSE` return `FALSE` instead.}
+\item{error}{If \code{TRUE} (default) stop with an explanation when the layout does
+not fit; if \code{FALSE} return \code{FALSE} instead.}
 
-\item{pattern}{Set to `"quadrants"` to count a quadrants layout (see
-[replicate_reactions()]): each reaction takes `ceiling(replicates / 4)`
-squares of 4 wells, `spacing` counts squares between reactions, and every
-square that contains a control well is skipped. `controls` must then be a
-plate from [place_controls()] (or 0) so the skipped squares can be counted.}
+\item{pattern}{Set to \code{"quadrants"} to count a quadrants layout (see
+\code{\link[=replicate_reactions]{replicate_reactions()}}): each reaction takes \code{ceiling(replicates / 4)}
+squares of 4 wells, \code{spacing} counts squares between reactions, and every
+square that contains a control well is skipped. \code{controls} must then be a
+plate from \code{\link[=place_controls]{place_controls()}} (or 0) so the skipped squares can be counted.}
 }
 \value{
-`FALSE` if the layout does not fit and `error = FALSE`. Otherwise a
-  list with
-  * `plate`, `wells_per_plate`, `plates_available`
-  * `used`: reaction wells over all copies
-  * `reserved`: control wells over all plates used
-  * `left`: wells still free across the available plates (negative when short)
-  * `skipped`: (quadrants only) wells in squares skipped because they hold a
-    control, over all plates used; they count against `left`
-  * `plates_needed`
-  * `fits`: `TRUE`
+\code{FALSE} if the layout does not fit and \code{error = FALSE}. Otherwise a
+list with
+\itemize{
+\item \code{plate}, \code{wells_per_plate}, \code{plates_available}
+\item \code{used}: reaction wells over all copies
+\item \code{reserved}: control wells over all plates used
+\item \code{left}: wells still free across the available plates (negative when short)
+\item \code{skipped}: (quadrants only) wells in squares skipped because they hold a
+control, over all plates used; they count against \code{left}
+\item \code{plates_needed}
+\item \code{fits}: \code{TRUE}
+}
 }
 \description{
-Counts the wells used by `n_reactions` reactions with `replicates` replicates
-each, repeated `copies` times, plus the wells reserved for controls, and
+Counts the wells used by \code{n_reactions} reactions with \code{replicates} replicates
+each, repeated \code{copies} times, plus the wells reserved for controls, and
 checks them against the plates available.
 }
 \details{
 Each copy of the layout starts on a fresh plate and may run over onto more
 plates. Controls are reserved on every plate that is used, so a layout that
 spills onto a second plate loses the control wells there too. With
-`spacing` above 1, every reaction well is followed by `spacing - 1` unused
+\code{spacing} above 1, every reaction well is followed by \code{spacing - 1} unused
 wells, which count as space needed but not as wells used.
 }
 \examples{
