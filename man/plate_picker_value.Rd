@@ -11,13 +11,19 @@ plate_picker_value(x)
 or \code{NULL} (no wells painted).}
 }
 \value{
-A data frame with character columns \code{well} and \code{label}.
+A data frame with character columns \code{well} and \code{label}, plus any
+\code{group} and attribute columns.
 }
 \description{
 In Shiny, \verb{input$<id>} of a \code{\link[=plate_picker]{plate_picker()}} arrives as a list with the
-elements \code{well} and \code{label}, each a list of strings. This returns a data
-frame with columns \code{well} and \code{label}, sorted in plate order (a well with
-several labels gets one row per label).
+elements \code{well} and \code{label}, each a list of strings, plus \code{group} and
+\code{attributes} when the labels have them. This returns a data frame with columns
+\code{well} and \code{label}, then any \code{group} and attribute columns, sorted in plate
+order (a well with several labels gets one row per label).
+}
+\details{
+The result works directly with the rest of mtpR, for example
+\code{plot_plate(d, fill = "label", well_id = "well", plate = 96)}.
 }
 \examples{
 plate_picker_value(list(well = list("B02", "A01"), label = list("Blank", "Blank")))

@@ -1,3 +1,40 @@
+# mtpR 0.4.3
+
+## plate_picker() is now a portable plate editor
+
+* `labels` can be a data frame with one row per label, like the `rxn_df` of
+  `replicate_reactions()`: a `label` column, optional `group` and `colour`, and
+  any other columns as attributes of that label. A `value` data frame with these
+  columns also works on its own.
+* With `editable = TRUE` (the default) labels, groups and attributes can be
+  added, changed and deleted in the browser, and Undo covers them.
+* A group can be painted *in sequence*: one click lays out all its labels from
+  that well, as `replicate_reactions()` does. It uses the same `pattern`
+  (`"grouped"` or `"dealt"`), `num_replicates`, `inter_spacing`, `intra_spacing`,
+  `start_position` and `fill_wise`, and locked wells act as `reserved`. The panel
+  shows the matching R call.
+* The plate size can be changed in the browser, keeping positions, filling in
+  order, or with each well becoming a 2x2 square (`quadrants`). In Shiny it is
+  reported as `input$<id>_plate`.
+* Load CSV reads a finished layout or a list of labels, matches column names used
+  across mtpR, and reads wells by the `"common"` rule of `clean_wells()`.
+* `fill` colours the plate by `"label"`, `"group"` or an attribute, using the
+  continuous scale and NA colour of `plot_plate()` for numbers.
+* Export writes a PNG, an SVG or a CSV. The CSV has `well`, `label`, `group` and
+  each attribute, and Save page keeps the plate, labels and groups too.
+* `plate_picker_value()` and `read_plate_picker()` return `group` and attribute
+  columns when the labels have them.
+* `locked` accepts a plate from `place_controls()`.
+* `update_plate_picker()` gains `plate`, `labels` and `fill`.
+
+## Behaviour changes
+
+* More than eight labels no longer need `colours`: the palette continues in
+  lighter rounds, and labels in a group share a hue. Labels with no group keep
+  their colours.
+* The label chips in the toolbar are replaced by a side panel, and Copy rows and
+  Download CSV moved into the Export panel.
+
 # mtpR 0.4.2
 
 ## New features

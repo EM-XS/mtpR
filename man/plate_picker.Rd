@@ -16,6 +16,8 @@ plate_picker(
   toolbar = TRUE,
   theme = c("auto", "light", "dark"),
   export_buttons = NULL,
+  fill = "label",
+  editable = TRUE,
   width = NULL,
   height = NULL,
   elementId = NULL
@@ -24,19 +26,22 @@ plate_picker(
 \arguments{
 \item{plate}{Plate size, one of the sizes \code{\link[=platesize_check]{platesize_check()}} allows.}
 
-\item{labels}{Character vector of label names the user paints with, at most
-eight unless \code{colours} names a colour for each. \code{NULL} (the default) gives
-one label, \code{"selected"}, for plain well selection.}
+\item{labels}{Character vector of label names the user paints with, or a
+data frame with a \code{label} column (see Labels, groups and attributes).
+\code{NULL} (the default) takes them from \code{value}, or gives one label,
+\code{"selected"}, for plain well selection.}
 
 \item{value}{Initial assignments: a data frame with columns \code{well} and
 \code{label}, or a named character vector (\code{c(A01 = "Blank")}). With
-\code{labels = NULL} a bare character vector of wells also works. Wells are
+\code{labels = NULL} a bare character vector of wells also works, and a data
+frame can also hold \code{group}, \code{colour} and attribute columns. Wells are
 checked against the plate and normalised (\code{"A1"} becomes \code{"A01"}).}
 
 \item{background}{Optional data frame with columns \code{well} and \code{fill} (a
 colour), and optionally \code{text} and \code{tooltip}, drawn under the labels.}
 
-\item{locked}{Wells that cannot be painted; drawn muted.}
+\item{locked}{Wells that cannot be painted, drawn muted: well labels, or a
+plate from \code{\link[=place_controls]{place_controls()}}, which locks its controls.}
 
 \item{active}{The label the brush starts with (default: the first).}
 
@@ -49,8 +54,14 @@ new one replaces it; if \code{TRUE} a well may hold several.}
 
 \item{theme}{\code{"auto"} (follow \code{prefers-color-scheme}), \code{"light"} or \code{"dark"}.}
 
-\item{export_buttons}{\code{NULL} (default) shows Copy rows, Download CSV and Save
-page outside Shiny only; \code{TRUE} or \code{FALSE} forces them on or off.}
+\item{export_buttons}{\code{NULL} (default) shows Export and Save page outside
+Shiny only; \code{TRUE} or \code{FALSE} forces them on or off.}
+
+\item{fill}{What colours the wells at first: \code{"label"} (default), \code{"group"}
+or an attribute name.}
+
+\item{editable}{Can the user change labels, groups and the plate, and load a
+CSV? Painting is always possible.}
 
 \item{width, height}{Widget size. The default width is the container width
 and the height follows from it.}
@@ -63,7 +74,9 @@ An 'htmlwidgets' object.
 \description{
 An 'htmlwidgets' plate map you click or drag across to give wells labels
 ("paint" them). It works in Shiny, in R Markdown and the RStudio viewer, and
-as a standalone offline HTML file (\code{\link[=plate_picker_html]{plate_picker_html()}}).
+as a standalone offline HTML file (\code{\link[=plate_picker_html]{plate_picker_html()}}). It is the portable
+drawing side of mtpR: it uses the same names as the R functions, and what it
+exports reads straight back into them.
 }
 \details{
 The widget is a plain SVG grid with row letters and column numbers as
@@ -72,16 +85,70 @@ along a stroke (a drag that starts on a well already holding the active
 label erases along the stroke instead); click a row letter or column number
 to paint the whole line, or to clear it when every well in it already has the
 label; hold Shift while dragging to paint a rectangle. Locked wells are
-skipped. The toolbar has one chip per label (also keys 1-9), an eraser,
-Undo/Redo (Ctrl/Cmd+Z, with Shift to redo), Clear and a live count per label.
-The grid is keyboard accessible: arrow keys move a focus ring, Space or
-Enter toggles the focused well and Escape cancels a stroke in progress.
+skipped. The side panel lists the labels with a live count (keys 1-9 pick
+the first nine), and the toolbar has an eraser, Undo/Redo (Ctrl/Cmd+Z, with
+Shift to redo) and Clear. The grid is keyboard accessible: arrow keys move a
+focus ring, Space or Enter toggles the focused well and Escape cancels a
+stroke in progress or closes a panel.
 }
+\section{Labels, groups and attributes}{
+
+\code{labels} can be a data frame with one row per label, like the \code{rxn_df} of
+\code{\link[=replicate_reactions]{replicate_reactions()}}. It needs a \code{label} column and can have \code{group} and
+\code{colour} columns; every other column is an attribute of that label. A
+\code{value} data frame with these columns also works on its own, so a saved
+result goes straight back in: \code{plate_picker(96, value = read_plate_picker(f))}.
+
+Attributes belong to a label, not a well, in the same way as \code{rxn_df} columns
+belong to a reaction. With \code{editable = TRUE}, labels, groups and attributes
+can be added, changed and deleted in the browser, and Undo covers those
+changes too.
+}
+
+\section{Painting a group in sequence}{
+
+Switch on \emph{In sequence} for a group, and one click lays out all its labels
+from that well, the way \code{\link[=replicate_reactions]{replicate_reactions()}} does. The click is the
+\code{start_position}, and \code{pattern} (\code{"grouped"} or \code{"dealt"}), \code{num_replicates},
+\code{inter_spacing}, \code{intra_spacing} and \code{fill_wise} mean what they mean there.
+Locked wells act as \code{reserved}. Labels go in list order. Wells past the end of
+the plate are left out and counted, rather than moving on to a next plate. The
+panel shows the matching \code{\link[=replicate_reactions]{replicate_reactions()}} call.
+}
+
+\section{Changing the plate}{
+
+With \code{editable = TRUE} the toolbar's plate list changes the size. With painted
+wells it first shows what will happen: keep positions, fill in order, or (when
+the new plate has twice the rows and columns) \code{quadrants}, where each well
+becomes a 2x2 square as in \code{\link[=well_quadrant]{well_quadrant()}}. In Shiny the size is reported as
+\verb{input$<id>_plate}.
+}
+
+\section{Loading a CSV}{
+
+Load CSV reads a comma, tab or semicolon separated file. A file with a well
+column is a finished layout and replaces the painting; one without is a list
+of labels to paint with. Columns are matched by name, including those of
+\code{\link[=place_controls]{place_controls()}} (\code{Well}, \code{Control}, \code{Role}) and \code{\link[=replicate_reactions]{replicate_reactions()}}
+(\code{reaction}, \code{replicate}, \code{position}), and can be reassigned before loading.
+Well labels are read by the \code{"common"} rule of \code{\link[=clean_wells]{clean_wells()}}.
+}
+
 \section{Colours}{
 
-Labels get a fixed colour-blind-safer palette (eight hues, in a fixed order).
-There are only eight default colours, so more than eight labels is an error
-unless \code{colours} gives a colour for every label.
+Labels get a fixed colour-blind-safer palette (eight hues, in a fixed order,
+then lighter rounds of them). The labels of a group share a hue, running dark
+to light. \code{fill} colours the plate by \code{"label"}, \code{"group"} or an attribute:
+numeric attributes use the continuous scale and NA colour of \code{\link[=plot_plate]{plot_plate()}},
+and other attributes one colour per value.
+}
+
+\section{Exporting}{
+
+Export (outside Shiny by default, see \code{export_buttons}) writes a PNG, an SVG
+or a CSV. The CSV has one row per well and label: \code{well}, \code{label}, \code{group} and
+each attribute. \code{\link[=read_plate_picker]{read_plate_picker()}} reads it back.
 }
 
 \section{Painting over a background}{
@@ -102,7 +169,7 @@ header click, undo, redo and clear (not on every pointer move), and
 assignments as a \emph{list} of \code{well} and \code{label} vectors (each itself a list);
 turn it into a data frame with \code{\link[=plate_picker_value]{plate_picker_value()}}. Use
 \code{\link[=update_plate_picker]{update_plate_picker()}} to change the painting without re-rendering. The
-Copy rows, Download CSV and Save page buttons are hidden in Shiny unless
+Export and Save page buttons are hidden in Shiny unless
 \code{export_buttons = TRUE}.
 }
 
@@ -110,6 +177,14 @@ Copy rows, Download CSV and Save page buttons are hidden in Shiny unless
 p <- plate_picker(96, labels = c("Blank", "Standard"),
                   value = c(A01 = "Blank", A02 = "Blank", B01 = "Standard"))
 p
+
+# Labels with groups and attributes, like the `rxn_df` of replicate_reactions()
+standards <- data.frame(label = paste0("S", 1:4), group = "Standards",
+                        conc_uM = c(100, 50, 25, 12.5))
+plate_picker(96, labels = standards, fill = "conc_uM")
+
+# Keep the controls from place_controls() out of the painting
+plate_picker(96, c("Sample 1", "Sample 2"), locked = place_controls(96, "edge"))
 
 if (interactive()) {
   library(shiny)

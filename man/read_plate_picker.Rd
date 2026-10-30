@@ -11,10 +11,10 @@ read_plate_picker(file)
 }
 \value{
 A data frame with character columns \code{well} and \code{label}, in plate
-order.
+order, plus any \code{group} and attribute columns.
 }
 \description{
-Reads either a CSV downloaded with the widget's Download CSV button or a page
+Reads either a CSV downloaded with the widget's Export button or a page
 saved with its Save page button (the painting is kept in a
 \verb{<script type="application/json" id="mtpr-picker-state">} block).
 }

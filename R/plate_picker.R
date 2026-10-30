@@ -2,7 +2,9 @@
 #'
 #' An 'htmlwidgets' plate map you click or drag across to give wells labels
 #' ("paint" them). It works in Shiny, in R Markdown and the RStudio viewer, and
-#' as a standalone offline HTML file ([plate_picker_html()]).
+#' as a standalone offline HTML file ([plate_picker_html()]). It is the portable
+#' drawing side of mtpR: it uses the same names as the R functions, and what it
+#' exports reads straight back into them.
 #'
 #' The widget is a plain SVG grid with row letters and column numbers as
 #' headers. Click a well to toggle the active label; press and drag to paint
@@ -10,15 +12,59 @@
 #' label erases along the stroke instead); click a row letter or column number
 #' to paint the whole line, or to clear it when every well in it already has the
 #' label; hold Shift while dragging to paint a rectangle. Locked wells are
-#' skipped. The toolbar has one chip per label (also keys 1-9), an eraser,
-#' Undo/Redo (Ctrl/Cmd+Z, with Shift to redo), Clear and a live count per label.
-#' The grid is keyboard accessible: arrow keys move a focus ring, Space or
-#' Enter toggles the focused well and Escape cancels a stroke in progress.
+#' skipped. The side panel lists the labels with a live count (keys 1-9 pick
+#' the first nine), and the toolbar has an eraser, Undo/Redo (Ctrl/Cmd+Z, with
+#' Shift to redo) and Clear. The grid is keyboard accessible: arrow keys move a
+#' focus ring, Space or Enter toggles the focused well and Escape cancels a
+#' stroke in progress or closes a panel.
+#'
+#' @section Labels, groups and attributes:
+#' `labels` can be a data frame with one row per label, like the `rxn_df` of
+#' [replicate_reactions()]. It needs a `label` column and can have `group` and
+#' `colour` columns; every other column is an attribute of that label. A
+#' `value` data frame with these columns also works on its own, so a saved
+#' result goes straight back in: `plate_picker(96, value = read_plate_picker(f))`.
+#'
+#' Attributes belong to a label, not a well, in the same way as `rxn_df` columns
+#' belong to a reaction. With `editable = TRUE`, labels, groups and attributes
+#' can be added, changed and deleted in the browser, and Undo covers those
+#' changes too.
+#'
+#' @section Painting a group in sequence:
+#' Switch on *In sequence* for a group, and one click lays out all its labels
+#' from that well, the way [replicate_reactions()] does. The click is the
+#' `start_position`, and `pattern` (`"grouped"` or `"dealt"`), `num_replicates`,
+#' `inter_spacing`, `intra_spacing` and `fill_wise` mean what they mean there.
+#' Locked wells act as `reserved`. Labels go in list order. Wells past the end of
+#' the plate are left out and counted, rather than moving on to a next plate. The
+#' panel shows the matching [replicate_reactions()] call.
+#'
+#' @section Changing the plate:
+#' With `editable = TRUE` the toolbar's plate list changes the size. With painted
+#' wells it first shows what will happen: keep positions, fill in order, or (when
+#' the new plate has twice the rows and columns) `quadrants`, where each well
+#' becomes a 2x2 square as in [well_quadrant()]. In Shiny the size is reported as
+#' `input$<id>_plate`.
+#'
+#' @section Loading a CSV:
+#' Load CSV reads a comma, tab or semicolon separated file. A file with a well
+#' column is a finished layout and replaces the painting; one without is a list
+#' of labels to paint with. Columns are matched by name, including those of
+#' [place_controls()] (`Well`, `Control`, `Role`) and [replicate_reactions()]
+#' (`reaction`, `replicate`, `position`), and can be reassigned before loading.
+#' Well labels are read by the `"common"` rule of [clean_wells()].
 #'
 #' @section Colours:
-#' Labels get a fixed colour-blind-safer palette (eight hues, in a fixed order).
-#' There are only eight default colours, so more than eight labels is an error
-#' unless `colours` gives a colour for every label.
+#' Labels get a fixed colour-blind-safer palette (eight hues, in a fixed order,
+#' then lighter rounds of them). The labels of a group share a hue, running dark
+#' to light. `fill` colours the plate by `"label"`, `"group"` or an attribute:
+#' numeric attributes use the continuous scale and NA colour of [plot_plate()],
+#' and other attributes one colour per value.
+#'
+#' @section Exporting:
+#' Export (outside Shiny by default, see `export_buttons`) writes a PNG, an SVG
+#' or a CSV. The CSV has one row per well and label: `well`, `label`, `group` and
+#' each attribute. [read_plate_picker()] reads it back.
 #'
 #' @section Painting over a background:
 #' `background` fills the wells themselves (for example a host app's reaction
@@ -35,28 +81,35 @@
 #' assignments as a *list* of `well` and `label` vectors (each itself a list);
 #' turn it into a data frame with [plate_picker_value()]. Use
 #' [update_plate_picker()] to change the painting without re-rendering. The
-#' Copy rows, Download CSV and Save page buttons are hidden in Shiny unless
+#' Export and Save page buttons are hidden in Shiny unless
 #' `export_buttons = TRUE`.
 #'
 #' @param plate Plate size, one of the sizes [platesize_check()] allows.
-#' @param labels Character vector of label names the user paints with, at most
-#'   eight unless `colours` names a colour for each. `NULL` (the default) gives
-#'   one label, `"selected"`, for plain well selection.
+#' @param labels Character vector of label names the user paints with, or a
+#'   data frame with a `label` column (see Labels, groups and attributes).
+#'   `NULL` (the default) takes them from `value`, or gives one label,
+#'   `"selected"`, for plain well selection.
 #' @param value Initial assignments: a data frame with columns `well` and
 #'   `label`, or a named character vector (`c(A01 = "Blank")`). With
-#'   `labels = NULL` a bare character vector of wells also works. Wells are
+#'   `labels = NULL` a bare character vector of wells also works, and a data
+#'   frame can also hold `group`, `colour` and attribute columns. Wells are
 #'   checked against the plate and normalised (`"A1"` becomes `"A01"`).
 #' @param background Optional data frame with columns `well` and `fill` (a
 #'   colour), and optionally `text` and `tooltip`, drawn under the labels.
-#' @param locked Wells that cannot be painted; drawn muted.
+#' @param locked Wells that cannot be painted, drawn muted: well labels, or a
+#'   plate from [place_controls()], which locks its controls.
 #' @param active The label the brush starts with (default: the first).
 #' @param colours Optional named vector, label to colour.
 #' @param multiple If `FALSE` (default) a well holds one label and painting a
 #'   new one replaces it; if `TRUE` a well may hold several.
 #' @param toolbar Show the toolbar?
 #' @param theme `"auto"` (follow `prefers-color-scheme`), `"light"` or `"dark"`.
-#' @param export_buttons `NULL` (default) shows Copy rows, Download CSV and Save
-#'   page outside Shiny only; `TRUE` or `FALSE` forces them on or off.
+#' @param export_buttons `NULL` (default) shows Export and Save page outside
+#'   Shiny only; `TRUE` or `FALSE` forces them on or off.
+#' @param fill What colours the wells at first: `"label"` (default), `"group"`
+#'   or an attribute name.
+#' @param editable Can the user change labels, groups and the plate, and load a
+#'   CSV? Painting is always possible.
 #' @param width,height Widget size. The default width is the container width
 #'   and the height follows from it.
 #' @param elementId Optional HTML id.
@@ -66,6 +119,14 @@
 #' p <- plate_picker(96, labels = c("Blank", "Standard"),
 #'                   value = c(A01 = "Blank", A02 = "Blank", B01 = "Standard"))
 #' p
+#'
+#' # Labels with groups and attributes, like the `rxn_df` of replicate_reactions()
+#' standards <- data.frame(label = paste0("S", 1:4), group = "Standards",
+#'                         conc_uM = c(100, 50, 25, 12.5))
+#' plate_picker(96, labels = standards, fill = "conc_uM")
+#'
+#' # Keep the controls from place_controls() out of the painting
+#' plate_picker(96, c("Sample 1", "Sample 2"), locked = place_controls(96, "edge"))
 #'
 #' if (interactive()) {
 #'   library(shiny)
@@ -91,6 +152,8 @@ plate_picker <- function(plate = 96,
                          toolbar = TRUE,
                          theme = c("auto", "light", "dark"),
                          export_buttons = NULL,
+                         fill = "label",
+                         editable = TRUE,
                          width = NULL,
                          height = NULL,
                          elementId = NULL) {
@@ -106,11 +169,18 @@ plate_picker <- function(plate = 96,
       (!is.logical(export_buttons) || length(export_buttons) != 1 || is.na(export_buttons))) {
     stop("`export_buttons` must be NULL, TRUE or FALSE.", call. = FALSE)
   }
+  if (!is.logical(editable) || length(editable) != 1 || is.na(editable)) {
+    stop("`editable` must be TRUE or FALSE.", call. = FALSE)
+  }
 
+  if (is.null(labels) && is.data.frame(value) && "label" %in% names(value) && nrow(value) > 0) {
+    labels <- picker_labels_from_value(value)
+  }
   plain <- is.null(labels)
   if (plain) labels <- "selected"
-  picker_check_labels(labels)
-  cols <- picker_colours(labels, colours)
+  lab <- picker_normalise_labels(labels, colours)
+  labels <- lab$labels
+  picker_check_fill(fill, lab)
 
   if (is.null(active)) active <- labels[1]
   if (!is.character(active) || length(active) != 1 || !active %in% labels) {
@@ -119,7 +189,7 @@ plate_picker <- function(plate = 96,
   }
 
   val <- picker_normalise_value(value, plate, labels, multiple, plain)
-  lock <- picker_normalise_wells(locked, plate, "locked")
+  lock <- picker_normalise_wells(picker_locked_wells(locked, plate), plate, "locked")
   bg <- picker_normalise_background(background, plate)
 
   x <- list(
@@ -128,7 +198,11 @@ plate_picker <- function(plate = 96,
     ncol = info$colmax,
     rowLabels = I(info$rows),
     labels = I(labels),
-    colours = I(unname(cols)),
+    colours = lab$colours,
+    groups = lab$groups,
+    attributes = lab$attributes,
+    fill = fill,
+    editable = editable,
     active = active,
     multiple = multiple,
     toolbar = toolbar,
@@ -203,8 +277,13 @@ renderPlate_picker <- function(expr, env = parent.frame(), quoted = FALSE) {
 #' @param value New assignments, as for [plate_picker()]. `NULL` leaves the
 #'   painting alone, an empty data frame clears it.
 #' @param active A label to make the active brush.
-#' @param locked New locked wells (`character()` unlocks everything).
+#' @param locked New locked wells (`character()` unlocks everything), or a plate
+#'   from [place_controls()].
 #' @param background New background data frame (see [plate_picker()]).
+#' @param plate New plate size. Wells keep their positions, and wells that are
+#'   not on the new plate are removed.
+#' @param labels New labels, as for [plate_picker()].
+#' @param fill New `fill`, as for [plate_picker()].
 #' @return Called for its side effect; returns `NULL` invisibly.
 #' @examples
 #' if (interactive()) {
@@ -222,7 +301,8 @@ renderPlate_picker <- function(expr, env = parent.frame(), quoted = FALSE) {
 #' }
 #' @export
 update_plate_picker <- function(session, id, value = NULL, active = NULL,
-                                locked = NULL, background = NULL) {
+                                locked = NULL, background = NULL, plate = NULL,
+                                labels = NULL, fill = NULL) {
   msg <- list(id = session$ns(id))
   # The size and labels are not known here, so wells are only normalised and
   # checked for shape; the browser ignores wells that are not on the plate.
@@ -235,8 +315,16 @@ update_plate_picker <- function(session, id, value = NULL, active = NULL,
     }
     msg$active <- active
   }
-  if (!is.null(locked)) msg$locked <- I(picker_normalise_wells(locked, NULL, "locked"))
+  if (!is.null(locked)) {
+    msg$locked <- I(picker_normalise_wells(picker_locked_wells(locked, plate), NULL, "locked"))
+  }
   if (!is.null(background)) msg$background <- picker_normalise_background(background, NULL)
+  if (!is.null(plate)) {
+    platesize_check(plate)
+    msg$plate <- plate
+  }
+  if (!is.null(labels)) msg$labels <- picker_normalise_labels(labels, NULL)
+  if (!is.null(fill)) msg$fill <- fill
   session$sendCustomMessage("mtpr_plate_picker", msg)
   invisible(NULL)
 }
@@ -244,19 +332,29 @@ update_plate_picker <- function(session, id, value = NULL, active = NULL,
 #' Turn the assignments a plate_picker reports into a data frame
 #'
 #' In Shiny, `input$<id>` of a [plate_picker()] arrives as a list with the
-#' elements `well` and `label`, each a list of strings. This returns a data
-#' frame with columns `well` and `label`, sorted in plate order (a well with
-#' several labels gets one row per label).
+#' elements `well` and `label`, each a list of strings, plus `group` and
+#' `attributes` when the labels have them. This returns a data frame with columns
+#' `well` and `label`, then any `group` and attribute columns, sorted in plate
+#' order (a well with several labels gets one row per label).
+#'
+#' The result works directly with the rest of mtpR, for example
+#' `plot_plate(d, fill = "label", well_id = "well", plate = 96)`.
 #'
 #' @param x The input value: that list, a data frame with `well` and `label`,
 #'   or `NULL` (no wells painted).
-#' @return A data frame with character columns `well` and `label`.
+#' @return A data frame with character columns `well` and `label`, plus any
+#'   `group` and attribute columns.
 #' @examples
 #' plate_picker_value(list(well = list("B02", "A01"), label = list("Blank", "Blank")))
 #' @export
 plate_picker_value <- function(x) {
   if (is.null(x) || length(x) == 0) return(picker_empty())
-  if (is.data.frame(x)) x <- as.list(x)
+  extra <- if (is.data.frame(x)) {
+    as.list(x[setdiff(names(x), c("well", "label"))])
+  } else if (is.list(x)) {
+    c(if (!is.null(x$group)) list(group = x$group), x$attributes)
+  }
+  x <- if (is.data.frame(x)) as.list(x) else x
   if (!is.list(x) || !all(c("well", "label") %in% names(x))) {
     stop("`x` must be a list or data frame with `well` and `label`.", call. = FALSE)
   }
@@ -268,18 +366,19 @@ plate_picker_value <- function(x) {
   if (length(well) == 0) return(picker_empty())
   out <- data.frame(well = pad_wells(well), label = label,
                     stringsAsFactors = FALSE)
+  for (name in names(extra)) out[[name]] <- picker_column(extra[[name]])
   out[picker_plate_order(out$well), , drop = FALSE] |> picker_rownames()
 }
 
 #' Read assignments saved by a plate_picker
 #'
-#' Reads either a CSV downloaded with the widget's Download CSV button or a page
+#' Reads either a CSV downloaded with the widget's Export button or a page
 #' saved with its Save page button (the painting is kept in a
 #' `<script type="application/json" id="mtpr-picker-state">` block).
 #'
 #' @param file Path to the CSV or HTML file.
 #' @return A data frame with character columns `well` and `label`, in plate
-#'   order.
+#'   order, plus any `group` and attribute columns.
 #' @examples
 #' f <- tempfile(fileext = ".html")
 #' plate_picker_html(plate_picker(96, "Blank", value = c(A01 = "Blank")), f)
@@ -297,24 +396,29 @@ read_plate_picker <- function(file) {
       stop("No plate picker state found in `", file, "`.", call. = FALSE)
     }
     st <- jsonlite::fromJSON(m[2], simplifyVector = FALSE)
-    return(plate_picker_value(list(well = st$assignments$well,
-                                   label = st$assignments$label)))
+    d <- plate_picker_value(list(well = st$assignments$well,
+                                 label = st$assignments$label))
+    return(picker_join_labels(d, st))
   }
-  d <- utils::read.csv(text = txt, colClasses = "character", stringsAsFactors = FALSE)
-  names(d) <- tolower(names(d))
+  d <- utils::read.csv(text = txt, colClasses = "character", stringsAsFactors = FALSE,
+                       check.names = FALSE, na.strings = "")
+  known <- tolower(names(d)) %in% c("well", "label", "group")
+  names(d)[known] <- tolower(names(d))[known]
   if (!all(c("well", "label") %in% names(d))) {
     stop("The CSV needs the columns `well` and `label`.", call. = FALSE)
   }
-  plate_picker_value(d[c("well", "label")])
+  extra <- setdiff(names(d), c("well", "label", "group"))
+  d[extra] <- lapply(d[extra], utils::type.convert, as.is = TRUE)
+  plate_picker_value(d)
 }
 
 #' Write a plate_picker as one self-contained HTML file
 #'
 #' Unlike `htmlwidgets::saveWidget(selfcontained = TRUE)` this does not need
 #' pandoc: the widget's JavaScript and CSS and the 'htmlwidgets' runtime are
-#' written into the page. The file opens offline without R. In it, Copy rows,
-#' Download CSV and Save page are available (Save page downloads a copy of the
-#' page with the current painting, so reopening it restores the painting;
+#' written into the page. The file opens offline without R. In it, Export and
+#' Save page are available (Save page downloads a copy of the page with the
+#' current plate, labels and painting, so reopening it restores them;
 #' [read_plate_picker()] reads it back).
 #'
 #' @param widget A [plate_picker()] widget.
@@ -371,11 +475,13 @@ plate_picker_html <- function(widget, file, title = NULL, ...) {
 
   page_title <- if (is.null(title)) "Plate picker" else title
   state <- list(
-    version = 1L, plate = widget$x$plate, labels = I(widget$x$labels),
-    title = title, assignments = widget$x$value
+    version = 2L, plate = widget$x$plate, labels = I(widget$x$labels),
+    colours = widget$x$colours, groups = widget$x$groups,
+    attributes = widget$x$attributes, fill = widget$x$fill,
+    locked = widget$x$locked, title = title, assignments = widget$x$value
   )
   state_json <- gsub("<", "\\u003c", as.character(jsonlite::toJSON(
-    state, auto_unbox = TRUE, null = "null")), fixed = TRUE)
+    state, auto_unbox = TRUE, null = "null", na = "null")), fixed = TRUE)
 
   page <- c(
     "<!DOCTYPE html>",
@@ -422,11 +528,91 @@ picker_rownames <- function(d) {
   d
 }
 
+# Columns of `labels` that are not attributes.
+.picker_label_columns <- c("well", "label", "group", "colour", "color")
+
 picker_check_labels <- function(labels) {
   if (!is.character(labels) || length(labels) < 1 || anyNA(labels) ||
       any(!nzchar(labels)) || anyDuplicated(labels)) {
     stop("`labels` must be a character vector of unique, non-empty names.", call. = FALSE)
   }
+}
+
+# `labels` (names or a data frame) as the parallel fields the widget reads.
+picker_normalise_labels <- function(labels, colours) {
+  groups <- NULL
+  attrs <- list()
+  from_data <- NULL
+  if (is.data.frame(labels)) {
+    if (!"label" %in% names(labels)) {
+      stop("`labels` needs a `label` column.", call. = FALSE)
+    }
+    d <- labels
+    labels <- as.character(d$label)
+    picker_check_labels(labels)
+    if ("group" %in% names(d)) {
+      groups <- as.character(d$group)
+      groups[!is.na(groups) & !nzchar(groups)] <- NA
+    }
+    if ("colour" %in% names(d) || "color" %in% names(d)) {
+      from_data <- as.character(d[[if ("colour" %in% names(d)) "colour" else "color"]])
+    }
+    for (name in setdiff(names(d), .picker_label_columns)) {
+      v <- d[[name]]
+      attrs[[name]] <- I(if (is.numeric(v)) as.numeric(v) else as.character(v))
+    }
+  }
+  picker_check_labels(labels)
+  list(labels = I(labels),
+       colours = I(unname(picker_colours(labels, colours, groups, from_data))),
+       groups = if (!is.null(groups)) I(groups),
+       attributes = attrs)
+}
+
+# One row per label from a `value` data frame.
+picker_labels_from_value <- function(value) {
+  d <- value[setdiff(names(value), "well")]
+  d <- unique(d)
+  if (anyDuplicated(d$label)) {
+    dup <- unique(d$label[duplicated(d$label)])
+    stop("Attributes belong to a label, but these labels have more than one value: ",
+         paste(utils::head(dup, 5), collapse = ", "), ".", call. = FALSE)
+  }
+  d
+}
+
+picker_check_fill <- function(fill, lab) {
+  allowed <- c("label", if (!is.null(lab$groups)) "group", names(lab$attributes))
+  if (!is.character(fill) || length(fill) != 1 || !fill %in% allowed) {
+    stop("`fill` must be one of: ", paste(allowed, collapse = ", "), ".", call. = FALSE)
+  }
+}
+
+# Well labels from `locked`, which can be a plate from place_controls().
+picker_locked_wells <- function(locked, plate) {
+  if (!inherits(locked, "mtpr_plate")) return(locked)
+  size <- attr(locked, "plate")
+  if (!is.null(plate) && plate != size) {
+    stop("`plate` (", plate, ") does not match the plate in `locked` (", size, ").",
+         call. = FALSE)
+  }
+  locked$Well[locked$Role == "control"]
+}
+
+# NULL entries of a list from the browser become NA.
+picker_column <- function(x) {
+  unlist(lapply(x, function(v) if (is.null(v)) NA else v))
+}
+
+# Add the group and attributes of each label, from a saved page's state.
+picker_join_labels <- function(d, st) {
+  names_ <- unlist(st$labels)
+  if (nrow(d) == 0 || is.null(names_)) return(d)
+  at <- match(d$label, names_)
+  groups <- picker_column(st$groups)
+  if (!is.null(groups) && !all(is.na(groups))) d$group <- as.character(groups[at])
+  for (name in names(st$attributes)) d[[name]] <- picker_column(st$attributes[[name]])[at]
+  d
 }
 
 # Colours as #RRGGBB, so they can be put into the page safely.
@@ -437,19 +623,48 @@ picker_hex <- function(x, what) {
   grDevices::rgb(rgb[1, ], rgb[2, ], rgb[3, ], maxColorValue = 255)
 }
 
-picker_colours <- function(labels, colours) {
-  if (is.null(colours)) {
-    if (length(labels) > length(.picker_palette)) {
-      stop("The default palette has ", length(.picker_palette), " colours but there are ",
-           length(labels), " labels. Use fewer labels or give `colours` for every label.",
-           call. = FALSE)
+# These three match mix(), paletteColour() and defaultColours() in
+# plate_picker_core.js; test-plate_picker_core.R compares them.
+picker_mix <- function(a, b, t) {
+  p <- grDevices::col2rgb(a)[, 1]
+  q <- grDevices::col2rgb(b)[, 1]
+  v <- floor(p + (q - p) * t + 0.5)
+  grDevices::rgb(v[1], v[2], v[3], maxColorValue = 255)
+}
+
+# The i-th colour: the palette, then ever lighter rounds of it.
+picker_palette <- function(i) {
+  n <- length(.picker_palette)
+  picker_mix(.picker_palette[(i - 1) %% n + 1], "#FFFFFF", 1 - 0.65^((i - 1) %/% n))
+}
+
+# A group takes one palette colour, and its labels run dark to light through it.
+picker_default_colours <- function(groups) {
+  keys <- ifelse(is.na(groups), paste0("label:", seq_along(groups)), paste0("group:", groups))
+  unit <- match(keys, unique(keys))
+  vapply(seq_along(keys), function(k) {
+    base <- picker_palette(unit[k])
+    m <- sum(unit == unit[k])
+    t <- if (m > 1) (sum(unit[seq_len(k)] == unit[k]) - 1) / (m - 1) else 0.5
+    if (t < 0.5) picker_mix(base, "#000000", 0.45 * (1 - 2 * t))
+    else picker_mix(base, "#FFFFFF", 0.75 * (2 * t - 1))
+  }, character(1))
+}
+
+picker_colours <- function(labels, colours, groups = NULL, from_data = NULL) {
+  if (!is.null(colours)) {
+    if (is.null(names(colours)) || !all(labels %in% names(colours))) {
+      stop("`colours` must be a named vector with a colour for every label.", call. = FALSE)
     }
-    return(stats::setNames(.picker_palette[seq_along(labels)], labels))
+    return(stats::setNames(picker_hex(as.character(colours[labels]), "colours"), labels))
   }
-  if (is.null(names(colours)) || !all(labels %in% names(colours))) {
-    stop("`colours` must be a named vector with a colour for every label.", call. = FALSE)
+  if (is.null(groups)) groups <- rep(NA_character_, length(labels))
+  out <- picker_default_colours(groups)
+  if (!is.null(from_data)) {
+    given <- !is.na(from_data)
+    if (any(given)) out[given] <- picker_hex(from_data[given], "colour")
   }
-  stats::setNames(picker_hex(as.character(colours[labels]), "colours"), labels)
+  stats::setNames(out, labels)
 }
 
 # Wells normalised, and (when the plate is known) checked against it.

@@ -6,7 +6,7 @@
 \alias{mtpR-package}
 \title{mtpR: Microtiter Plate Layout and Data Tools}
 \description{
-A small toolkit for designing and reading microtiter plate layouts. It converts between well labels and numeric indices, assigns reactions and replicates to well positions across one or more plates with configurable spacing, draws 'ggplot2' plate maps, and reshapes plate-shaped data into tidy long format. An experimental 'shiny' app provides a graphical front-end. 'plate_picker()' is an 'htmlwidgets' plate map you paint with labels, in 'shiny' or as an offline HTML file.
+A small toolkit for designing and reading microtiter plate layouts. It converts between well labels and numeric indices, assigns reactions and replicates to well positions across one or more plates with configurable spacing, draws 'ggplot2' plate maps, and reshapes plate-shaped data into tidy long format. An experimental 'shiny' app provides a graphical front-end. 'plate_picker()' is an 'htmlwidgets' plate map you paint with labels, groups and attributes, in 'shiny' or as an offline HTML file.
 }
 \seealso{
 Useful links:

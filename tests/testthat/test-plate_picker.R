@@ -12,11 +12,52 @@ test_that("plate_picker() validates its arguments", {
   expect_error(plate_picker(96, c("a", "b"), colours = c(a = "red", b = "notacolour")), "valid colour")
 })
 
-test_that("more than eight labels need explicit colours", {
-  many <- paste0("L", 1:9)
-  expect_error(plate_picker(96, many), "default palette")
-  cols <- stats::setNames(rep(c("red", "blue", "green"), 3), many)
-  expect_s3_class(plate_picker(96, many, colours = cols), "plate_picker")
+test_that("the palette goes on past eight labels", {
+  many <- paste0("L", 1:20)
+  p <- plate_picker(96, many)
+  expect_length(unique(as.character(p$x$colours)), 20)
+  expect_equal(as.character(p$x$colours)[1:8], .picker_palette)
+  cols <- stats::setNames(rep(c("red", "blue", "green", "black"), 5), many)
+  expect_equal(as.character(plate_picker(96, many, colours = cols)$x$colours)[1], "#FF0000")
+})
+
+test_that("labels can be a data frame with groups, colours and attributes", {
+  d <- data.frame(label = c("S1", "S2", "Blank"), group = c("Std", "Std", NA),
+                  colour = c(NA, "red", NA), conc_uM = c(100, 50, NA), lot = c("a", "b", NA))
+  p <- plate_picker(96, d, fill = "conc_uM")
+  expect_equal(as.character(p$x$labels), d$label)
+  expect_equal(as.character(p$x$groups), d$group)
+  expect_equal(as.character(p$x$colours)[2], "#FF0000")
+  expect_equal(names(p$x$attributes), c("conc_uM", "lot"))
+  expect_equal(p$x$fill, "conc_uM")
+  json <- as.character(jsonlite::toJSON(p$x$attributes$conc_uM, na = "null"))
+  expect_equal(json, "[100,50,null]")
+
+  expect_error(plate_picker(96, data.frame(name = "x")), "`label` column")
+  expect_error(plate_picker(96, data.frame(label = c("a", "a"))), "unique")
+  expect_error(plate_picker(96, d, fill = "nope"), "`fill` must be one of: label, group, conc_uM, lot")
+  expect_error(plate_picker(96, "a", fill = "group"), "`fill`")
+  expect_error(plate_picker(96, editable = NA), "editable")
+})
+
+test_that("a value data frame can bring its own labels", {
+  v <- data.frame(well = c("A1", "A2", "B1"), label = c("x", "x", "y"), group = "g", conc = c(1, 1, 2))
+  p <- plate_picker(96, value = v)
+  expect_equal(as.character(p$x$labels), c("x", "y"))
+  expect_equal(as.character(p$x$attributes$conc), c("1", "2"))
+  expect_equal(as.character(p$x$value$well), c("A01", "A02", "B01"))
+  v$conc[2] <- 9
+  expect_error(plate_picker(96, value = v), "belong to a label")
+  # a saved plate with nothing painted
+  empty <- plate_picker(96, value = data.frame(well = character(), label = character()))
+  expect_equal(as.character(empty$x$labels), "selected")
+})
+
+test_that("locked accepts a plate from place_controls()", {
+  controls <- place_controls(96, wells = c("A01", "H12"))
+  p <- plate_picker(96, "x", locked = controls)
+  expect_equal(as.character(p$x$locked), c("A01", "H12"))
+  expect_error(plate_picker(384, "x", locked = controls), "does not match")
 })
 
 test_that("values are normalised and checked against the plate", {
@@ -128,6 +169,32 @@ test_that("read_plate_picker() reads saved pages and exported CSV files", {
   expect_error(read_plate_picker(csv2), "`well` and `label`")
 })
 
+test_that("groups and attributes come back from Shiny, saved pages and CSV files", {
+  x <- list(well = list("B02", "A01"), label = list("b", "a"), group = list(NULL, "g"),
+            attributes = list(conc = list(2, NULL), lot = list("x", "y")))
+  d <- plate_picker_value(x)
+  expect_equal(d$well, c("A01", "B02"))
+  expect_equal(d$group, c("g", NA))
+  expect_equal(d$conc, c(NA, 2))
+  expect_equal(d$lot, c("y", "x"))
+
+  v <- data.frame(label = c("S1", "S2"), group = "Std", conc = c(10, 5))
+  f <- tempfile(fileext = ".html")
+  plate_picker_html(plate_picker(96, v, value = c(A01 = "S1", B01 = "S2", C01 = "S2")), f)
+  d <- read_plate_picker(f)
+  expect_equal(d$group, rep("Std", 3))
+  expect_equal(d$conc, c(10, 5, 5))
+  again <- plate_picker(96, value = d)
+  expect_equal(as.character(again$x$labels), c("S1", "S2"))
+
+  # a page saved by 0.4.2 has only the painting
+  old <- tempfile(fileext = ".html")
+  writeLines(paste0("<html><script type=\"application/json\" id=\"mtpr-picker-state\">",
+                    "{\"version\":1,\"plate\":96,\"labels\":[\"a\"],\"assignments\":",
+                    "{\"well\":[\"A01\"],\"label\":[\"a\"]}}</script></html>"), old)
+  expect_equal(read_plate_picker(old), data.frame(well = "A01", label = "a"))
+})
+
 test_that("update_plate_picker() sends the normalised changes", {
   sent <- NULL
   session <- list(ns = function(id) paste0("mod-", id),
@@ -142,6 +209,12 @@ test_that("update_plate_picker() sends the normalised changes", {
   update_plate_picker(session, "p", value = data.frame(well = character(), label = character()))
   expect_length(sent$msg$value$well, 0)
   expect_error(update_plate_picker(session, "p", active = 1:2), "single label")
+  update_plate_picker(session, "p", plate = 384, fill = "conc",
+                      labels = data.frame(label = "a", conc = 1))
+  expect_equal(sent$msg$plate, 384)
+  expect_equal(sent$msg$fill, "conc")
+  expect_equal(as.character(sent$msg$labels$labels), "a")
+  expect_error(update_plate_picker(session, "p", plate = 100), "Unsupported plate size")
 })
 
 test_that("the Shiny output and render functions exist", {

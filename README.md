@@ -115,6 +115,37 @@ read_plate_picker("plate.html")      # data frame of well and label
 In Shiny, use `plate_pickerOutput()` and `renderPlate_picker()`, read the result
 with `plate_picker_value(input$id)`, and change it with `update_plate_picker()`.
 
+`plate_picker()` is the portable drawing side of mtpR, so it uses the same names.
+Labels can be a data frame, like the `rxn_df` of `replicate_reactions()`:
+
+```r
+standards <- data.frame(
+  label = paste0("S", 1:4), group = "Standards",
+  conc_uM = c(100, 50, 25, 12.5)
+)
+
+p <- plate_picker(96, labels = standards, locked = place_controls(96, "edge"))
+plate_picker_html(p, "plate.html", title = "Run 12")
+```
+
+In the page you can:
+
+- add and edit labels, groups and attributes
+- switch on *In sequence* for a group, so one click lays out all its labels from
+  that well, using `pattern`, `num_replicates`, `inter_spacing`, `intra_spacing`
+  and `fill_wise` as in `replicate_reactions()`
+- change the plate size, or load a CSV
+- colour the plate with `fill` by label, group or attribute
+- export a PNG, an SVG or a CSV, or use Save page to keep everything in one file
+
+The result reads straight back into R:
+
+```r
+d <- read_plate_picker("plate.html")   # well, label, group, conc_uM
+plot_plate(d, fill = "conc_uM", well_id = "well", plate = 96)
+plate_picker(96, value = d)            # carry on painting
+```
+
 ## Example: draw a picklist
 
 ```r
