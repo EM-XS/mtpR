@@ -1,7 +1,7 @@
 Package: mtpR
 Type: Package
 Title: Microtiter Plate Layout and Data Tools
-Version: 0.3.1
+Version: 0.4.0
 Authors@R:
     person("Emily", email = "ejpmohr@gmail.com", role = c("aut", "cre"))
 Description: A small toolkit for designing and reading microtiter plate
@@ -9,21 +9,23 @@ Description: A small toolkit for designing and reading microtiter plate
     reactions and replicates to well positions across one or more plates
     with configurable spacing, draws 'ggplot2' plate maps, and reshapes
     plate-shaped data into tidy long format. An experimental 'shiny' app
-    provides a graphical front-end.
+    provides a graphical front-end. 'plate_picker()' is an 'htmlwidgets' plate
+    map you paint with labels, in 'shiny' or as an offline HTML file.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Imports:
     dplyr,
     DT,
     ggplot2,
+    htmltools,
+    htmlwidgets,
+    jsonlite,
     rlang,
     shiny,
     stringr,
     tidyr
 Suggests:
     ggiraph,
-    htmltools,
-    htmlwidgets,
     testthat (>= 3.0.0)
 RoxygenNote: 7.3.2
 Config/testthat/edition: 3
